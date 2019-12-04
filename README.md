@@ -19,7 +19,7 @@ conda activate avsd
 
 ## Data
  * download 'split'.json data at: video-dialog.com
-
+ * Extracted features for Video, Audio and Dialog data cab be found [here] (https://drive.google.com/drive/folders/14zlHmNFkCgptiGttwWKrsaaz5vVUFs00?usp=sharing)
 
 ## Workflow
 
