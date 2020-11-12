@@ -4,6 +4,7 @@ from six import iteritems
 from random import shuffle
 
 import h5py
+import hdfdict
 import numpy as np
 from tqdm import tqdm
 
@@ -17,12 +18,18 @@ class VisDialDataset(Dataset):
     @staticmethod
     def add_cmdline_args(parser):
         parser.add_argument_group('Dataloader specific arguments')
-        parser.add_argument('-input_img', default='data/data_img.h5', help='HDF5 file with image features')
-        parser.add_argument('-input_vid', default='data/data_video.h5', help='HDF5 file with image features')
-        parser.add_argument('-input_audio', default='data/data_audio.h5', help='HDF5 file with audio features')
-        parser.add_argument('-input_ques', default='data/dialogs.h5', help='HDF5 file with preprocessed questions')
-        parser.add_argument('-input_json', default='data/params.json', help='JSON file with image paths and vocab')
-        parser.add_argument('-img_norm', default=1, choices=[1, 0], help='normalize the image feature. 1=yes, 0=no')
+        parser.add_argument(
+            '-input_img', default='data/data_img.h5', help='HDF5 file with image features')
+        # parser.add_argument(
+        #     '-input_vid', default='data/data_video.h5', help='HDF5 file with video features')
+        parser.add_argument(
+            '-input_audio', default='data/data_audio.h5', help='HDF5 file with audio features')
+        parser.add_argument('-input_ques', default='data/dialogs.h5',
+                            help='HDF5 file with preprocessed questions')
+        parser.add_argument('-input_json', default='data/params.json',
+                            help='JSON file with image paths and vocab')
+        parser.add_argument(
+            '-img_norm', default=1, choices=[1, 0], help='normalize the image feature. 1=yes, 0=no')
         return parser
 
     def __init__(self, args, subsets):
@@ -60,14 +67,13 @@ class VisDialDataset(Dataset):
         print("Dataloader loading h5 file: {}".format(args.input_ques))
         ques_file = h5py.File(args.input_ques, 'r')
 
-
         if 'image' in args.input_type:
             print("Dataloader loading h5 file: {}".format(args.input_img))
             img_file = h5py.File(args.input_img, 'r')
 
         if 'video' in args.input_type:
             print("Dataloader loading h5 file: {}".format(args.input_vid))
-            vid_file = h5py.File(args.input_vid, 'r')
+            vid_file = args.input_vid
 
         if 'audio' in args.input_type:
             print("Dataloader loading h5 file: {}".format(args.input_audio))
@@ -104,16 +110,23 @@ class VisDialDataset(Dataset):
 
             if 'video' in args.input_type:
                 print("Reading video features...")
-                vid_feats = torch.from_numpy(np.array(vid_file['images_' + dtype]))
+                # Charades dataset features are all saved in one h5 file as a key, feat dictionary
+                vid_feats = hdfdict.load(
+                    args.input_vid + "_{0}.h5".format(dtype))
+                # If this throws an error because it cannot find the video filename,uncomment below
+                # vid_feats = hdfdict.load(
+                #     args.input_vid + "_{0}.h5".format("train"))
+                # vid_feats.update(hdfdict.load(
+                #     args.input_vid + "_{0}.h5".format("test")))
 
                 img_fnames = getattr(self, 'unique_img_' + dtype)
                 self.data[dtype + '_img_fnames'] = img_fnames
                 self.data[dtype + '_vid_fv'] = vid_feats
 
-
             if 'image' in args.input_type:
                 print("Reading image features...")
-                img_feats = torch.from_numpy(np.array(img_file['images_' + dtype]))
+                img_feats = torch.from_numpy(
+                    np.array(img_file['images_' + dtype]))
 
                 if args.img_norm:
                     print("Normalizing image features...")
@@ -125,7 +138,8 @@ class VisDialDataset(Dataset):
 
             if 'audio' in args.input_type:
                 print("Reading audio features...")
-                audio_feats = torch.from_numpy(np.array(audio_file['images_' + dtype]))
+                audio_feats = torch.from_numpy(
+                    np.array(audio_file['images_' + dtype]))
                 audio_feats = F.normalize(audio_feats, dim=1, p=2)
                 self.data[dtype + '_audio_fv'] = audio_feats
 
@@ -139,14 +153,15 @@ class VisDialDataset(Dataset):
             self.max_ans_len = self.data[dtype + '_ans'].size(2)
 
         # reduce amount of data for preprocessing in fast mode
-        #TODO
+        # TODO
         if args.overfit:
             print('\n \n \n ---------->> NOT IMPLEMENTED OVERFIT CASE  <-----\n \n \n ')
 
         self.num_data_points = {}
         for dtype in subsets:
             self.num_data_points[dtype] = len(self.data[dtype + '_ques'])
-            print("[{0}] no. of threads: {1}".format(dtype, self.num_data_points[dtype]))
+            print("[{0}] no. of threads: {1}".format(
+                dtype, self.num_data_points[dtype]))
         print("\tMax no. of rounds: {}".format(self.max_ques_count))
         print("\tMax ques len: {}".format(self.max_ques_len))
         print("\tMax ans len: {}".format(self.max_ans_len))
@@ -191,8 +206,11 @@ class VisDialDataset(Dataset):
 
         # get video features
         if 'video' in self.args.input_type:
-            item['vid_feat'] = self.data[dtype + '_vid_fv'][idx]
+            # item['img_fnames'] is as train_val/vid_id.jpg hence the splits
             item['img_fnames'] = self.data[dtype + '_img_fnames'][idx]
+            vid_id = item['img_fnames'].split("/")[-1].split(".")[0]
+            item['vid_feat'] = torch.from_numpy(
+                self.data[dtype + '_vid_fv'][vid_id]).reshape(-1)
 
         # get image features
         if 'image' in self.args.input_type:
@@ -226,20 +244,20 @@ class VisDialDataset(Dataset):
 
         item['opt'] = option_in
         item['opt_len'] = opt_len
-        #if dtype != 'test':
+        # if dtype != 'test':
         ans_ind = self.data[dtype + '_ans_ind'][idx]
         item['ans_ind'] = ans_ind.view(-1)
 
         # convert zero length sequences to one length
         # this is for handling empty rounds of v1.0 test, they will be dropped anyway
-        #if dtype == 'test':
+        # if dtype == 'test':
         item['ques_len'][item['ques_len'] == 0] += 1
         item['opt_len'][item['opt_len'] == 0] += 1
         return item
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # collate function utilized by dataloader for batching
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def collate_fn(self, batch):
         dtype = self._split
@@ -254,15 +272,18 @@ class VisDialDataset(Dataset):
                 out[key] = torch.stack(merged_batch[key], 0)
         # Dynamic shaping of padded batch
         if 'hist' in out:
-            out['hist'] = out['hist'][:, :, :torch.max(out['hist_len'])].contiguous()
-        out['ques'] = out['ques'][:, :, :torch.max(out['ques_len'])].contiguous()
-        out['opt'] = out['opt'][:, :, :, :torch.max(out['opt_len'])].contiguous()
+            out['hist'] = out['hist'][:, :, :torch.max(
+                out['hist_len'])].contiguous()
+        out['ques'] = out['ques'][:, :, :torch.max(
+            out['ques_len'])].contiguous()
+        out['opt'] = out['opt'][:, :, :, :torch.max(
+            out['opt_len'])].contiguous()
 
         return out
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # preprocessing functions
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def _process_history(self, dtype):
         """Process caption as well as history. Optionally, concatenate history
@@ -278,10 +299,13 @@ class VisDialDataset(Dataset):
         num_convs, num_rounds, max_ans_len = answers.size()
 
         if self.args.concat_history:
-            self.max_hist_len = min(num_rounds * (max_ques_len + max_ans_len), 400)
-            history = torch.zeros(num_convs, num_rounds, self.max_hist_len).long()
+            self.max_hist_len = min(
+                num_rounds * (max_ques_len + max_ans_len), 400)
+            history = torch.zeros(num_convs, num_rounds,
+                                  self.max_hist_len).long()
         else:
-            history = torch.zeros(num_convs, num_rounds, max_ques_len + max_ans_len).long()
+            history = torch.zeros(num_convs, num_rounds,
+                                  max_ques_len + max_ans_len).long()
         hist_len = torch.zeros(num_convs, num_rounds).long()
 
         if 'dialog' in self.args.input_type:
@@ -319,13 +343,14 @@ class VisDialDataset(Dataset):
                             hlen = alen + qlen
                     # save the history length
                     hist_len[th_id][round_id] = hlen
-        else: # -- caption only
+        else:  # -- caption only
             # go over each question and append it with answer
             for th_id in range(num_convs):
                 clen = cap_len[th_id]
                 hlen = min(clen, max_ques_len + max_ans_len)
                 for round_id in range(num_rounds):
-                    history[th_id][round_id][:max_ques_len + max_ans_len] = captions[th_id][:max_ques_len + max_ans_len]
+                    history[th_id][round_id][:max_ques_len +
+                                             max_ans_len] = captions[th_id][:max_ques_len + max_ans_len]
                     hist_len[th_id][round_id] = hlen
 
         self.data[dtype + '_hist'] = history

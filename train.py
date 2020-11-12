@@ -21,43 +21,57 @@ LateFusionEncoder.add_cmdline_args(parser)
 
 parser.add_argument_group('Input modalites arguments')
 parser.add_argument('-input_type', default='question_dialog_video', choices=['question_only',
-                                                                     'question_dialog',
-                                                                     'question_audio',
-                                                                     'question_image',
-                                                                     'question_video',
-                                                                     'question_caption_image',
-                                                                     'question_dialog_video',
-                                                                     'question_dialog_image',
-                                                                     'question_video_audio',
-                                                                     'question_dialog_video_audio'], help='Specify the inputs')
+                                                                             'question_dialog',
+                                                                             'question_audio',
+                                                                             'question_image',
+                                                                             'question_video',
+                                                                             'question_caption_image',
+                                                                             'question_dialog_video',
+                                                                             'question_dialog_image',
+                                                                             'question_video_audio',
+                                                                             'question_dialog_video_audio'], help='Specify the inputs')
 
 parser.add_argument_group('Encoder Decoder choice arguments')
-parser.add_argument('-encoder', default='lf-ques-im-hist', choices=['lf-ques-im-hist'], help='Encoder to use for training')
-parser.add_argument('-concat_history', default=True, help='True for lf encoding')
-parser.add_argument('-decoder', default='disc', choices=['disc'], help='Decoder to use for training')
+parser.add_argument('-encoder', default='lf-ques-im-hist',
+                    choices=['lf-ques-im-hist'], help='Encoder to use for training')
+parser.add_argument('-concat_history', default=True,
+                    help='True for lf encoding')
+parser.add_argument('-decoder', default='disc',
+                    choices=['disc'], help='Decoder to use for training')
 
 parser.add_argument_group('Optimization related arguments')
 parser.add_argument('-num_epochs', default=20, type=int, help='Epochs')
 parser.add_argument('-batch_size', default=12, type=int, help='Batch size')
 parser.add_argument('-lr', default=1e-3, type=float, help='Learning rate')
-parser.add_argument('-lr_decay_rate', default=0.9997592083, type=float, help='Decay for lr')
-parser.add_argument('-min_lr', default=5e-5, type=float, help='Minimum learning rate')
-parser.add_argument('-weight_init', default='xavier', choices=['xavier', 'kaiming'], help='Weight initialization strategy')
-parser.add_argument('-weight_decay', default=0.00075, help='Weight decay for l2 regularization')
-parser.add_argument('-overfit', action='store_true', help='Overfit on 5 examples, meant for debugging')
+parser.add_argument('-lr_decay_rate', default=0.9997592083,
+                    type=float, help='Decay for lr')
+parser.add_argument('-min_lr', default=5e-5, type=float,
+                    help='Minimum learning rate')
+parser.add_argument('-weight_init', default='xavier',
+                    choices=['xavier', 'kaiming'], help='Weight initialization strategy')
+parser.add_argument('-weight_decay', default=0.00075,
+                    help='Weight decay for l2 regularization')
+parser.add_argument('-overfit', action='store_true',
+                    help='Overfit on 5 examples, meant for debugging')
 parser.add_argument('-gpuid', default=0, type=int, help='GPU id to use')
 
 parser.add_argument_group('Checkpointing related arguments')
-parser.add_argument('-load_path', default='', help='Checkpoint to load path from')
-parser.add_argument('-save_path', default='checkpoints/', help='Path to save checkpoints')
-parser.add_argument('-save_step', default=2, type=int, help='Save checkpoint after every save_step epochs')
+parser.add_argument('-load_path', default='',
+                    help='Checkpoint to load path from')
+parser.add_argument('-save_path', default='checkpoints/',
+                    help='Path to save checkpoints')
+parser.add_argument('-save_step', default=2, type=int,
+                    help='Save checkpoint after every save_step epochs')
+parser.add_argument(
+    '--input_vid', default="./data/charades/charades_s3d_mixed_5c_fps_16_480p_scaled", help=".h5 file path for the charades s3d features.")
 
 # ----------------------------------------------------------------------------
 # input arguments and options
 # ----------------------------------------------------------------------------
 
 args = parser.parse_args()
-start_time = datetime.datetime.strftime(datetime.datetime.utcnow(), '%d-%b-%Y-%H:%M:%S')
+start_time = datetime.datetime.strftime(
+    datetime.datetime.utcnow(), '%d-%b-%Y-%H:%M:%S')
 if args.save_path == 'checkpoints/':
     args.save_path += start_time
 
@@ -114,7 +128,8 @@ for key in {'num_data_points', 'vocab_size', 'max_ques_count',
     setattr(model_args, key, getattr(dataset, key))
 
 # iterations per epoch
-setattr(args, 'iter_per_epoch', math.ceil(dataset.num_data_points['train'] / args.batch_size))
+setattr(args, 'iter_per_epoch', math.ceil(
+    dataset.num_data_points['train'] / args.batch_size))
 print("{} iter per epoch.".format(args.iter_per_epoch))
 
 # ----------------------------------------------------------------------------
@@ -123,9 +138,11 @@ print("{} iter per epoch.".format(args.iter_per_epoch))
 
 encoder = Encoder(model_args)
 decoder = Decoder(model_args, encoder)
-optimizer = optim.Adam(list(encoder.parameters()) + list(decoder.parameters()), lr=args.lr, weight_decay=args.weight_decay)
+optimizer = optim.Adam(list(encoder.parameters(
+)) + list(decoder.parameters()), lr=args.lr, weight_decay=args.weight_decay)
 criterion = nn.CrossEntropyLoss()
-scheduler = lr_scheduler.StepLR(optimizer, step_size=1, gamma=args.lr_decay_rate)
+scheduler = lr_scheduler.StepLR(
+    optimizer, step_size=1, gamma=args.lr_decay_rate)
 
 if args.load_path != '':
     encoder.load_state_dict(components['encoder'])
@@ -149,7 +166,8 @@ os.makedirs(args.save_path, exist_ok=True)
 
 running_loss = 0.0
 train_begin = datetime.datetime.utcnow()
-print("Training start time: {}".format(datetime.datetime.strftime(train_begin, '%d-%b-%Y-%H:%M:%S')))
+print("Training start time: {}".format(
+    datetime.datetime.strftime(train_begin, '%d-%b-%Y-%H:%M:%S')))
 
 log_loss = []
 for epoch in range(1, model_args.num_epochs + 1):
@@ -185,7 +203,6 @@ for epoch in range(1, model_args.num_epochs + 1):
         if optimizer.param_groups[0]['lr'] > args.min_lr:
             scheduler.step()
 
-
         # --------------------------------------------------------------------
         # print after every few iterations
         # --------------------------------------------------------------------
@@ -217,8 +234,8 @@ for epoch in range(1, model_args.num_epochs + 1):
             # print current time, running average, learning rate, iteration, epoch
             print("[{}][Epoch: {:3d}][Iter: {:6d}][Loss: {:6f}][val loss: {:6f}][lr: {:7f}]".format(
                 datetime.datetime.utcnow() - train_begin, epoch,
-                    iteration, running_loss, validation_loss,
-                    optimizer.param_groups[0]['lr']))
+                iteration, running_loss, validation_loss,
+                optimizer.param_groups[0]['lr']))
 
     # ------------------------------------------------------------------------
     # save checkpoints and final model
@@ -239,4 +256,3 @@ torch.save({
 }, os.path.join(args.save_path, 'model_final.pth'))
 
 np.save(os.path.join(args.save_path, 'log_loss'), log_loss)
-

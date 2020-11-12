@@ -40,6 +40,5 @@ launcher.sh
 
 # virtualenv
 venv/
-HowTo100/weights
 .vscode
 .swp
