@@ -20,7 +20,7 @@ VisDialDataset.add_cmdline_args(parser)
 LateFusionEncoder.add_cmdline_args(parser)
 
 parser.add_argument_group('Input modalites arguments')
-parser.add_argument('-input_type', default='question_dialog_video_audio', choices=['question_only',
+parser.add_argument('-input_type', default='question_dialog_video', choices=['question_only',
                                                                      'question_dialog',
                                                                      'question_audio',
                                                                      'question_image',
@@ -176,11 +176,11 @@ for epoch in range(1, model_args.num_epochs + 1):
         # --------------------------------------------------------------------
         # update running loss and decay learning rates
         # --------------------------------------------------------------------
-        train_loss = cur_loss.data[0]
+        train_loss = cur_loss.item()
         if running_loss > 0.0:
-            running_loss = 0.95 * running_loss + 0.05 * cur_loss.data[0]
+            running_loss = 0.95 * running_loss + 0.05 * cur_loss.item()
         else:
-            running_loss = cur_loss.data[0]
+            running_loss = cur_loss.item()
 
         if optimizer.param_groups[0]['lr'] > args.min_lr:
             scheduler.step()
@@ -201,7 +201,7 @@ for epoch in range(1, model_args.num_epochs + 1):
                 dec_out = decoder(enc_out, val_batch)
 
                 cur_loss = criterion(dec_out, val_batch['ans_ind'].view(-1))
-                validation_losses.append(cur_loss.data[0])
+                validation_losses.append(cur_loss.item())
 
             validation_loss = np.mean(validation_losses)
 
