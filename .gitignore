@@ -4,7 +4,7 @@ __pycache__
 *.py[cod]
 *$py.class
 .idea
-
+*.swp
 # C extensions
 *.so
 
@@ -33,7 +33,8 @@ data/
 checkpoints/
 logs/
 results/
-
+log/
+launcher.sh
 # IPython Notebook
 .ipynb_checkpoints
 
