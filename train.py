@@ -80,6 +80,8 @@ parser.add_argument('--center_crop', type=int, default=0,
 parser.add_argument('--random_flip', type=int, default=0,
                     help='random seed')
 parser.add_argument('--video_root', default='./data/charades/videos')
+parser.add_argument('--unfreeze_layers', default=0, type=int,
+                    help="if 1, unfreezes _5 layers, if 2 unfreezes _4 and _5 layers, if 0, unfreezes all layers")
 # ----------------------------------------------------------------------------
 # input arguments and options
 # ----------------------------------------------------------------------------
@@ -153,6 +155,12 @@ print("{} iter per epoch.".format(args.iter_per_epoch))
 
 encoder = Encoder(model_args)
 decoder = Decoder(model_args, encoder)
+total_params = sum(p.numel() for p in encoder.parameters() if p.requires_grad)
+print("Total number of encoder params {0}".format(total_params))
+if args.finetune:
+    total_params = sum(p.numel()
+                       for p in encoder.video_embed.parameters() if p.requires_grad)
+    print("Total number of s3dg params {0}".format(total_params))
 optimizer = optim.Adam(list(encoder.parameters(
 )) + list(decoder.parameters()), lr=args.lr, weight_decay=args.weight_decay)
 criterion = nn.CrossEntropyLoss()
@@ -221,7 +229,7 @@ for epoch in range(1, model_args.num_epochs + 1):
         # --------------------------------------------------------------------
         # print after every few iterations
         # --------------------------------------------------------------------
-        if i % 100 == 0:
+        if i % 500 == 0:
             validation_losses = []
             for _, val_batch in tqdm(enumerate(dataloader_val)):
                 for key in val_batch:

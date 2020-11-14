@@ -238,7 +238,6 @@ class S3D(nn.Module):
         self.mixed_5c = InceptionBlock(
             self.mixed_5b.output_dim, 384, 192, 384, 48, 128, 128
         )
-        self.fc = nn.Linear(self.mixed_5c.output_dim, num_classes)
 
         '''
         if init == 'kaiming_normal':
@@ -288,4 +287,4 @@ class S3D(nn.Module):
         net = self.mixed_5b(net)
         net = self.mixed_5c(net)
         net = th.mean(net, dim=[2, 3, 4])
-        return {'video_embedding': self.fc(net), 'mixed_5c': net}
+        return {'mixed_5c': net}

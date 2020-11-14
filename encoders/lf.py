@@ -40,6 +40,8 @@ class LateFusionEncoder(nn.Module):
             self.video_embed = S3D(
                 dict_path='data/s3d_dict.npy', space_to_depth=True)
             self.video_embed.train()
+            if self.args.unfreeze_layers:
+                self.__freeze_s3dg_layers()
 
         if 'dialog' in args.input_type or 'caption' in args.input_type:
             self.hist_rnn = nn.LSTM(args.embed_size, args.rnn_hidden_size,
@@ -79,6 +81,16 @@ class LateFusionEncoder(nn.Module):
         elif args.weight_init == 'kaiming':
             nn.init.kaiming_uniform(self.fusion.weight.data)
         nn.init.constant(self.fusion.bias.data, 0)
+
+    def __freeze_s3dg_layers(self):
+        # Only train _4 and _5 layers
+        layers = ["mixed_5c"]
+        if self.args.unfreeze_layers == 2:
+            layers = ["mixed_5b", "mixed_5c"]
+        for name, param in self.video_embed.named_parameters():
+            param.requires_grad = False
+            if any(l in name for l in layers):
+                param.requires_grad = True
 
     def forward(self, batch):
         if 'image' in self.args.input_type:
