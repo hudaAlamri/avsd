@@ -68,7 +68,7 @@ parser.add_argument(
 parser.add_argument('--finetune', default=0, type=int,
                     help="When set true, the model finetunes the s3dg model for video")
 # S3DG parameters and dataloader
-parser.add_argument('--num_frames', type=int, default=16,
+parser.add_argument('--num_frames', type=int, default=40,
                     help='random seed')
 parser.add_argument('--video_size', type=int, default=224,
                     help='random seed')
@@ -79,6 +79,7 @@ parser.add_argument('--center_crop', type=int, default=0,
                     help='random seed')
 parser.add_argument('--random_flip', type=int, default=0,
                     help='random seed')
+parser.add_argument('--video_root', default='./data/charades/videos')
 # ----------------------------------------------------------------------------
 # input arguments and options
 # ----------------------------------------------------------------------------

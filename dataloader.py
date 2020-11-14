@@ -15,8 +15,6 @@ import torch as th
 import torch.nn.functional as F
 from torch.utils.data import Dataset
 
-video_root = './data/charades/videos'
-
 
 class VisDialDataset(Dataset):
 
@@ -282,7 +280,8 @@ class VisDialDataset(Dataset):
                 f_dtype = "train_val"
                 if dtype == "test":
                     f_dtype + "test"
-                video_path = os.path.join(video_root, f_dtype, vid_id)
+                video_path = os.path.join(
+                    self.args.video_root, f_dtype, vid_id)
                 item['vid_feat'] = self._get_video(video_path)
             else:
                 item['vid_feat'] = torch.from_numpy(
