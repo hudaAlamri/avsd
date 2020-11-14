@@ -7,10 +7,15 @@ import h5py
 import hdfdict
 import numpy as np
 from tqdm import tqdm
+import ffmpeg
+import random
 
 import torch
+import torch as th
 import torch.nn.functional as F
 from torch.utils.data import Dataset
+
+video_root = './data/charades/videos'
 
 
 class VisDialDataset(Dataset):
@@ -111,13 +116,13 @@ class VisDialDataset(Dataset):
             if 'video' in args.input_type:
                 print("Reading video features...")
                 # Charades dataset features are all saved in one h5 file as a key, feat dictionary
-                vid_feats = hdfdict.load(
-                    args.input_vid + "_{0}.h5".format(dtype))
-                # If this throws an error because it cannot find the video filename,uncomment below
                 # vid_feats = hdfdict.load(
-                #     args.input_vid + "_{0}.h5".format("train"))
-                # vid_feats.update(hdfdict.load(
-                #     args.input_vid + "_{0}.h5".format("test")))
+                #     args.input_vid + "_{0}.h5".format(dtype))
+                # If this throws an error because it cannot find the video filename,uncomment below
+                vid_feats = hdfdict.load(
+                    args.input_vid + "_{0}.h5".format("train"))
+                vid_feats.update(hdfdict.load(
+                    args.input_vid + "_{0}.h5".format("test")))
 
                 img_fnames = getattr(self, 'unique_img_' + dtype)
                 self.data[dtype + '_img_fnames'] = img_fnames
@@ -199,6 +204,65 @@ class VisDialDataset(Dataset):
     def __len__(self):
         return self.num_data_points[self._split]
 
+    def _get_video(self, video_path, start=0, end=0):
+        '''
+        :param video_path: Path of the video file
+        start: Start time for the video
+        end: End time.
+        :return: video: video_frames.
+        '''
+        # start_seek = random.randint(start, int(max(start, end - self.num_sec)))
+        start_seek = 0
+        cmd = (
+            ffmpeg
+            .input(video_path)
+            .filter('fps', fps=self.args.fps)
+        )
+        if self.args.center_crop:
+            aw, ah = 0.5, 0.5
+        else:
+            aw, ah = random.uniform(0, 1), random.uniform(0, 1)
+        if self.args.crop_only:
+            '''
+            Changes from the original code, because we have few videos that have <224 resolution and needs to be scaled up after cropping, and cropping needs to take care of the size of the image which it did not before. 
+            cmd = (cmd.crop('(iw - {})*{}'.format(self.args.video_size, aw),
+                         '(ih - {})*{}'.format(self.args.video_size, ah),
+                         str(self.args.video_size), str(self.args.video_size))
+            )'''
+            cmd = (
+                cmd.crop('max(0, (iw - {}))*{}'.format(self.args.video_size, aw),
+                         'max(0, (ih - {}))*{}'.format(self.args.video_size, ah),
+                         'min(iw, {})'.format(self.args.video_size),
+                         'min(ih, {})'.format(self.args.video_size))
+                .filter('scale', self.args.video_size, self.args.video_size)
+            )
+        else:
+            cmd = (
+                cmd.crop('(iw - max(0, min(iw,ih)))*{}'.format(aw),
+                         '(ih - max(0, min(iw,ih)))*{}'.format(ah),
+                         'min(iw,ih)',
+                         'min(iw,ih)')
+                .filter('scale', self.args.video_size, self.args.video_size)
+            )
+        if self.args.random_flip and random.uniform(0, 1) > 0.5:
+            cmd = cmd.hflip()
+        out, _ = (
+            cmd.output('pipe:', format='rawvideo', pix_fmt='rgb24')
+            .run(capture_stdout=True, quiet=True)
+        )
+        video = np.frombuffer(out, np.uint8).reshape(
+            [-1, self.args.video_size, self.args.video_size, 3])
+        video = th.from_numpy(video)
+        video = video.permute(3, 0, 1, 2)
+        if video.shape[1] < self.args.num_frames:
+            zeros = th.zeros(
+                (3, self.args.num_frames - video.shape[1], self.args.video_size, self.args.video_size), dtype=th.uint8)
+            video = th.cat((video, zeros), axis=1)
+        # Gets n_frames from tne entire video, linearly spaced
+        vid_indices = np.linspace(
+            0, video.shape[1]-1, self.args.num_frames, dtype=int)
+        return video[:, vid_indices]
+
     def __getitem__(self, idx):
         dtype = self._split
         item = {'index': idx}
@@ -206,11 +270,21 @@ class VisDialDataset(Dataset):
 
         # get video features
         if 'video' in self.args.input_type:
-            # item['img_fnames'] is as train_val/vid_id.jpg hence the splits
             item['img_fnames'] = self.data[dtype + '_img_fnames'][idx]
+            # item['img_fnames'] is as train_val/vid_id.jpg hence the splits
             vid_id = item['img_fnames'].split("/")[-1].split(".")[0]
-            item['vid_feat'] = torch.from_numpy(
-                self.data[dtype + '_vid_fv'][vid_id]).reshape(-1)
+            if ".mp4" not in vid_id:
+                vid_id = vid_id + ".mp4"
+
+            if self.args.finetune:
+                f_dtype = "train_val"
+                if dtype == "test":
+                    f_dtype + "test"
+                video_path = os.path.join(video_root, f_dtype, vid_id)
+                item['vid_feat'] = self._get_video(video_path)
+            else:
+                item['vid_feat'] = torch.from_numpy(
+                    self.data[dtype + '_vid_fv'][vid_id]).reshape(-1)
 
         # get image features
         if 'image' in self.args.input_type:

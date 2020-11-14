@@ -4,6 +4,8 @@ from torch.nn import functional as F
 
 from utils import DynamicRNN
 
+from encoders.s3dg_video import S3D
+
 
 class LateFusionEncoder(nn.Module):
 
@@ -34,13 +36,19 @@ class LateFusionEncoder(nn.Module):
         self.word_embed = nn.Embedding(
             args.vocab_size, args.embed_size, padding_idx=0)
 
+        if self.args.finetune:
+            self.video_embed = S3D(
+                dict_path='data/s3d_dict.npy', space_to_depth=True)
+            self.video_embed.train()
+
         if 'dialog' in args.input_type or 'caption' in args.input_type:
-            self.hist_rnn = nn.LSTM(args.embed_size, args.rnn_hidden_size, args.num_layers,
-                                    batch_first=True, dropout=args.dropout)
+            self.hist_rnn = nn.LSTM(args.embed_size, args.rnn_hidden_size,
+                                    args.num_layers, batch_first=True, dropout=args.dropout)
             self.hist_rnn = DynamicRNN(self.hist_rnn)
 
-        self.ques_rnn = nn.LSTM(args.embed_size, args.rnn_hidden_size, args.num_layers,
-                                batch_first=True, dropout=args.dropout)
+        self.ques_rnn = nn.LSTM(args.embed_size, args.rnn_hidden_size,
+                                args.num_layers, batch_first=True,
+                                dropout=args.dropout)
         # questions and history are right padded sequences of variable length
         # use the DynamicRNN utility module to handle them properly
         self.ques_rnn = DynamicRNN(self.ques_rnn)
@@ -88,7 +96,12 @@ class LateFusionEncoder(nn.Module):
             audio = audio.view(-1, self.args.audio_feature_size)
 
         if 'video' in self.args.input_type:
-            vid = batch['vid_feat']
+            if self.args.finetune:
+                # In this case, vid_feat has video frames.Multiplication by 255 because s3d video frames are normalised
+                vid = self.video_embed(batch['vid_feat'].float())[
+                    "mixed_5c"] * 255.0
+            else:
+                vid = batch['vid_feat'] * 255.0
             # repeat image feature vectors to be provided for every round
             vid = vid.view(-1, 1, self.args.vid_feature_size)
             vid = vid.repeat(1, self.args.max_ques_count, 1)
@@ -131,5 +144,5 @@ class LateFusionEncoder(nn.Module):
 
         fused_vector = self.dropout(fused_vector)
 
-        fused_embedding = F.tanh(self.fusion(fused_vector))
+        fused_embedding = torch.tanh(self.fusion(fused_vector))
         return fused_embedding

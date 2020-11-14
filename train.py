@@ -4,6 +4,7 @@ import gc
 import math
 import os
 import numpy as np
+from tqdm import tqdm
 
 import torch
 from torch import nn, optim
@@ -63,8 +64,21 @@ parser.add_argument('-save_path', default='checkpoints/',
 parser.add_argument('-save_step', default=2, type=int,
                     help='Save checkpoint after every save_step epochs')
 parser.add_argument(
-    '--input_vid', default="./data/charades/charades_s3d_mixed_5c_fps_16_480p_scaled", help=".h5 file path for the charades s3d features.")
-
+    '--input_vid', default="./data/charades/charades_s3d_mixed_5c_fps_16_num_frames_40_original_scaled", help=".h5 file path for the charades s3d features.")
+parser.add_argument('--finetune', default=0, type=int,
+                    help="When set true, the model finetunes the s3dg model for video")
+# S3DG parameters and dataloader
+parser.add_argument('--num_frames', type=int, default=16,
+                    help='random seed')
+parser.add_argument('--video_size', type=int, default=224,
+                    help='random seed')
+parser.add_argument('--fps', type=int, default=16, help='')
+parser.add_argument('--crop_only', type=int, default=1,
+                    help='random seed')
+parser.add_argument('--center_crop', type=int, default=0,
+                    help='random seed')
+parser.add_argument('--random_flip', type=int, default=0,
+                    help='random seed')
 # ----------------------------------------------------------------------------
 # input arguments and options
 # ----------------------------------------------------------------------------
@@ -171,7 +185,7 @@ print("Training start time: {}".format(
 
 log_loss = []
 for epoch in range(1, model_args.num_epochs + 1):
-    for i, batch in enumerate(dataloader):
+    for i, batch in tqdm(enumerate(dataloader)):
         optimizer.zero_grad()
         for key in batch:
             if not isinstance(batch[key], list):
@@ -208,7 +222,7 @@ for epoch in range(1, model_args.num_epochs + 1):
         # --------------------------------------------------------------------
         if i % 100 == 0:
             validation_losses = []
-            for _, val_batch in enumerate(dataloader_val):
+            for _, val_batch in tqdm(enumerate(dataloader_val)):
                 for key in val_batch:
                     if not isinstance(val_batch[key], list):
                         val_batch[key] = Variable(val_batch[key])
