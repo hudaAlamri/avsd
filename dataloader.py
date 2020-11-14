@@ -115,6 +115,7 @@ class VisDialDataset(Dataset):
 
             if 'video' in args.input_type:
                 print("Reading video features...")
+
                 # Charades dataset features are all saved in one h5 file as a key, feat dictionary
                 # vid_feats = hdfdict.load(
                 #     args.input_vid + "_{0}.h5".format(dtype))
@@ -264,6 +265,7 @@ class VisDialDataset(Dataset):
         return video[:, vid_indices]
 
     def __getitem__(self, idx):
+
         dtype = self._split
         item = {'index': idx}
         item['num_rounds'] = self.data[dtype + '_num_rounds'][idx]

@@ -37,7 +37,7 @@ log/
 launcher.sh
 # IPython Notebook
 .ipynb_checkpoints
-
+data
 # virtualenv
 venv/
 .vscode
