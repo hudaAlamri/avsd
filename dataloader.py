@@ -111,13 +111,13 @@ class VisDialDataset(Dataset):
             if 'video' in args.input_type:
                 print("Reading video features...")
                 # Charades dataset features are all saved in one h5 file as a key, feat dictionary
-                vid_feats = hdfdict.load(
-                    args.input_vid + "_{0}.h5".format(dtype))
+                #vid_feats = hdfdict.load(
+                #    args.input_vid + "_{0}.h5".format(dtype))
                 # If this throws an error because it cannot find the video filename,uncomment below
-                # vid_feats = hdfdict.load(
-                #     args.input_vid + "_{0}.h5".format("train"))
-                # vid_feats.update(hdfdict.load(
-                #     args.input_vid + "_{0}.h5".format("test")))
+                vid_feats = hdfdict.load(
+                     args.input_vid + "_{0}.h5".format("train"))
+                vid_feats.update(hdfdict.load(
+                     args.input_vid + "_{0}.h5".format("test")))
 
                 img_fnames = getattr(self, 'unique_img_' + dtype)
                 self.data[dtype + '_img_fnames'] = img_fnames
@@ -200,17 +200,21 @@ class VisDialDataset(Dataset):
         return self.num_data_points[self._split]
 
     def __getitem__(self, idx):
+        
         dtype = self._split
         item = {'index': idx}
         item['num_rounds'] = self.data[dtype + '_num_rounds'][idx]
-
-        # get video features
-        if 'video' in self.args.input_type:
-            # item['img_fnames'] is as train_val/vid_id.jpg hence the splits
-            item['img_fnames'] = self.data[dtype + '_img_fnames'][idx]
-            vid_id = item['img_fnames'].split("/")[-1].split(".")[0]
-            item['vid_feat'] = torch.from_numpy(
-                self.data[dtype + '_vid_fv'][vid_id]).reshape(-1)
+        try:
+            # get video features
+            if 'video' in self.args.input_type:
+                # item['img_fnames'] is as train_val/vid_id.jpg hence the splits
+                item['img_fnames'] = self.data[dtype + '_img_fnames'][idx]
+                vid_id = item['img_fnames'].split("/")[-1].split(".")[0] + '.mp4'
+                item['vid_feat'] = torch.from_numpy(
+                    self.data[dtype + '_vid_fv'][vid_id]).reshape(-1)
+        except:
+            import pdb
+            pdb.set_trace()
 
         # get image features
         if 'image' in self.args.input_type:
