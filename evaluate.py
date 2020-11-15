@@ -21,27 +21,56 @@ VisDialDataset.add_cmdline_args(parser)
 LateFusionEncoder.add_cmdline_args(parser)
 
 parser.add_argument('-input_type', default='question_dialog_video_audio', choices=['question_only',
-                                                                     'question_dialog',
-                                                                     'question_audio',
-                                                                     'question_image',
-                                                                     'question_video',
-                                                                     'question_caption_image',
-                                                                     'question_dialog_video',
-                                                                     'question_dialog_image',
-                                                                     'question_video_audio',
-                                                                     'question_dialog_video_audio'], help='Specify the inputs')
+                                                                                   'question_dialog',
+                                                                                   'question_audio',
+                                                                                   'question_image',
+                                                                                   'question_video',
+                                                                                   'question_caption_image',
+                                                                                   'question_dialog_video',
+                                                                                   'question_dialog_image',
+                                                                                   'question_video_audio',
+                                                                                   'question_dialog_video_audio'], help='Specify the inputs')
 
 parser.add_argument_group('Evaluation related arguments')
-parser.add_argument('-load_path', default='checkpoints/13-Jun-2019-16:22:48/model_epoch_14.pth', help='Checkpoint to load path from')
-parser.add_argument('-split', default='test', choices=['val', 'test', 'train'], help='Split to evaluate on')
-parser.add_argument('-use_gt', action='store_true', help='Whether to use ground truth for retrieving ranks')
+parser.add_argument('-load_path', default='checkpoints/13-Jun-2019-16:22:48/model_epoch_14.pth',
+                    help='Checkpoint to load path from')
+parser.add_argument('-split', default='test',
+                    choices=['val', 'test', 'train'], help='Split to evaluate on')
+parser.add_argument('-use_gt', action='store_true',
+                    help='Whether to use ground truth for retrieving ranks')
 parser.add_argument('-batch_size', default=12, type=int, help='Batch size')
 parser.add_argument('-gpuid', default=0, type=int, help='GPU id to use')
-parser.add_argument('-overfit', action='store_true', help='Use a batch of only 5 examples, useful for debugging')
+parser.add_argument('-overfit', action='store_true',
+                    help='Use a batch of only 5 examples, useful for debugging')
 
 parser.add_argument_group('Submission related arguments')
-parser.add_argument('-save_ranks', action='store_true', help='Whether to save retrieved ranks')
-parser.add_argument('-save_path', default='logs/ranks.json', help='Path of json file to save ranks')
+parser.add_argument('-save_ranks', action='store_true',
+                    help='Whether to save retrieved ranks')
+parser.add_argument('-save_path', default='logs/ranks.json',
+                    help='Path of json file to save ranks')
+parser.add_argument(
+    '--input_vid', default="./data/charades/charades_s3d_mixed_5c_fps_16_num_frames_40_original_scaled", help=".h5 file path for the charades s3d features.")
+parser.add_argument('--finetune', default=0, type=int,
+                    help="When set true, the model finetunes the s3dg model for video")
+# S3DG parameters and dataloader
+parser.add_argument('--num_frames', type=int, default=40,
+                    help='num_frame')
+parser.add_argument('--video_size', type=int, default=224,
+                    help='random seed')
+parser.add_argument('--fps', type=int, default=16, help='')
+parser.add_argument('--crop_only', type=int, default=1,
+                    help='random seed')
+parser.add_argument('--center_crop', type=int, default=0,
+                    help='random seed')
+parser.add_argument('--random_flip', type=int, default=0,
+                    help='random seed')
+parser.add_argument('--video_root', default='./data/charades/videos')
+parser.add_argument('--unfreeze_layers', default=0, type=int,
+                    help="if 1, unfreezes _5 layers, if 2 unfreezes _4 and _5 layers, if 0, unfreezes all layers")
+parser.add_argument("--text_encoder", default="lstm",
+                    help="lstm or transformer", type=str)
+parser.add_argument("--use_npy", default=0,
+                    help="Uses npy instead of reading from videos")
 # ----------------------------------------------------------------------------
 # input arguments and options
 # ----------------------------------------------------------------------------
@@ -82,7 +111,8 @@ dataloader = DataLoader(dataset,
                         collate_fn=dataset.collate_fn)
 
 # iterations per epoch
-setattr(args, 'iter_per_epoch', math.ceil(dataset.num_data_points[args.split] / args.batch_size))
+setattr(args, 'iter_per_epoch', math.ceil(
+    dataset.num_data_points[args.split] / args.batch_size))
 print("{} iter per epoch.".format(args.iter_per_epoch))
 
 # ----------------------------------------------------------------------------
@@ -108,7 +138,6 @@ print("Evaluation start time: {}".format(
     datetime.datetime.strftime(datetime.datetime.utcnow(), '%d-%b-%Y-%H:%M:%S')))
 encoder.eval()
 decoder.eval()
-
 
 
 if args.use_gt:

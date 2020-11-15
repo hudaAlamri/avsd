@@ -284,10 +284,15 @@ class VisDialDataset(Dataset):
             if self.args.finetune:
                 f_dtype = "train_val"
                 if dtype == "test":
-                    f_dtype + "test"
-                video_path = os.path.join(
-                    self.args.video_root, f_dtype, vid_id)
-                item['vid_feat'] = self._get_video(video_path)
+                    f_dtype = "test"
+                if self.args.use_npy:
+                    video_path = os.path.join(numpy_path, vid_id)
+                    item['vid_feat'] = np.load(
+                        video_path.replace(".mp4", ".npy"))
+                else:
+                    video_path = os.path.join(
+                        self.args.video_root, f_dtype, vid_id)
+                    item['vid_feat'] = self._get_video(video_path)
             else:
                 item['vid_feat'] = torch.from_numpy(
                     self.data[dtype + '_vid_fv'][vid_id]).reshape(-1)

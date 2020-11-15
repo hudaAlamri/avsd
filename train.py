@@ -69,7 +69,7 @@ parser.add_argument('--finetune', default=0, type=int,
                     help="When set true, the model finetunes the s3dg model for video")
 # S3DG parameters and dataloader
 parser.add_argument('--num_frames', type=int, default=40,
-                    help='random seed')
+                    help='num_frame')
 parser.add_argument('--video_size', type=int, default=224,
                     help='random seed')
 parser.add_argument('--fps', type=int, default=16, help='')
@@ -84,17 +84,21 @@ parser.add_argument('--unfreeze_layers', default=0, type=int,
                     help="if 1, unfreezes _5 layers, if 2 unfreezes _4 and _5 layers, if 0, unfreezes all layers")
 parser.add_argument("--text_encoder", default="lstm",
                     help="lstm or transformer", type=str)
+parser.add_argument("--use_npy", default=0,
+                    help="Uses npy instead of reading from videos")
+parser.add_argument("--numpy_path", default="./data/charades")
 # ----------------------------------------------------------------------------
 # input arguments and options
 # ----------------------------------------------------------------------------
 
 args = parser.parse_args()
+args.numpy_path += "num_frames_{}".format(args.num_frames)
 start_time = datetime.datetime.strftime(
     datetime.datetime.utcnow(), '%d-%b-%Y-%H:%M:%S')
 if args.save_path == 'checkpoints/':
     # args.save_path += start_time
     args.save_path += 's3d_mixed_5c_fps_{0}_num_frames_{1}_text_encoder_{2}_lr_{3}_unfreeze_layer_{4}_finetune_{5}'.format(
-        args.fps, args.num_frames, args.text_encoder, args.lr, args.unfreeze_layers, finetune)
+        args.fps, args.num_frames, args.text_encoder, args.lr, args.unfreeze_layers, args.finetune)
 
 # seed for reproducibility
 torch.manual_seed(1234)
@@ -138,7 +142,6 @@ dataloader_val = DataLoader(dataset_val,
                             batch_size=args.batch_size,
                             shuffle=False,
                             collate_fn=dataset.collate_fn)
-
 # ----------------------------------------------------------------------------
 # setting model args
 # ----------------------------------------------------------------------------
@@ -192,7 +195,7 @@ decoder.train()
 os.makedirs(args.save_path, exist_ok=True)
 with open(os.path.join(args.save_path, "args_{0}.txt".format(start_time)), "w") as f:
     f.write(str(args))
-f.close()wf
+f.close()
 
 running_loss = 0.0
 train_begin = datetime.datetime.utcnow()
@@ -236,7 +239,8 @@ for epoch in range(1, model_args.num_epochs + 1):
         # --------------------------------------------------------------------
         # print after every few iterations
         # --------------------------------------------------------------------
-        if i % 500 == 0:
+        if i % 200 == 0:
+            print("Running validation")
             validation_losses = []
             for _, val_batch in tqdm(enumerate(dataloader_val)):
                 for key in val_batch:
