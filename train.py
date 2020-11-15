@@ -93,8 +93,8 @@ start_time = datetime.datetime.strftime(
     datetime.datetime.utcnow(), '%d-%b-%Y-%H:%M:%S')
 if args.save_path == 'checkpoints/':
     # args.save_path += start_time
-    args.save_path += 's3d_mixed_5c_fps_{0}_num_frames_{1}_text_encoder_{2}_lr_{3}_unfreeze_layer_{4}'.format(
-        args.fps, args.num_frames, args.text_encoder, args.lr, args.unfreeze_layers)
+    args.save_path += 's3d_mixed_5c_fps_{0}_num_frames_{1}_text_encoder_{2}_lr_{3}_unfreeze_layer_{4}_finetune_{5}'.format(
+        args.fps, args.num_frames, args.text_encoder, args.lr, args.unfreeze_layers, finetune)
 
 # seed for reproducibility
 torch.manual_seed(1234)
@@ -192,7 +192,7 @@ decoder.train()
 os.makedirs(args.save_path, exist_ok=True)
 with open(os.path.join(args.save_path, "args_{0}.txt".format(start_time)), "w") as f:
     f.write(str(args))
-f.close()
+f.close()wf
 
 running_loss = 0.0
 train_begin = datetime.datetime.utcnow()
