@@ -9,6 +9,7 @@ import numpy as np
 from tqdm import tqdm
 import ffmpeg
 import random
+import pdb
 
 import torch
 import torch as th
@@ -245,10 +246,14 @@ class VisDialDataset(Dataset):
             )
         if self.args.random_flip and random.uniform(0, 1) > 0.5:
             cmd = cmd.hflip()
-        out, _ = (
-            cmd.output('pipe:', format='rawvideo', pix_fmt='rgb24')
-            .run(capture_stdout=True, quiet=True)
-        )
+        try:
+            out, _ = (
+                cmd.output('pipe:', format='rawvideo', pix_fmt='rgb24')
+                .run(capture_stdout=True, quiet=True)
+            )
+        except:
+            print(video_path, cmd)
+
         video = np.frombuffer(out, np.uint8).reshape(
             [-1, self.args.video_size, self.args.video_size, 3])
         video = th.from_numpy(video)
