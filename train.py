@@ -42,7 +42,7 @@ parser.add_argument('-decoder', default='disc',
 
 parser.add_argument_group('Optimization related arguments')
 parser.add_argument('-num_epochs', default=20, type=int, help='Epochs')
-parser.add_argument('-batch_size', default=12, type=int, help='Batch size')
+parser.add_argument('-batch_size', default=4, type=int, help='Batch size')
 parser.add_argument('-lr', default=1e-3, type=float, help='Learning rate')
 parser.add_argument('-lr_decay_rate', default=0.9997592083,
                     type=float, help='Decay for lr')
@@ -57,15 +57,15 @@ parser.add_argument('-overfit', action='store_true',
 parser.add_argument('-gpuid', default=0, type=int, help='GPU id to use')
 
 parser.add_argument_group('Checkpointing related arguments')
-parser.add_argument('-load_path', default='',
+parser.add_argument('-load_path', default='checkpoints/nofinetune/14-Nov-2020-18:38:13/model_final.pth',
                     help='Checkpoint to load path from')
-parser.add_argument('-save_path', default='checkpoints/',
+parser.add_argument('-save_path', default='checkpoints/nofinetune/',
                     help='Path to save checkpoints')
 parser.add_argument('-save_step', default=2, type=int,
                     help='Save checkpoint after every save_step epochs')
 parser.add_argument(
-    '--input_vid', default="./data/charades/charades_s3d_mixed_5c_fps_16_num_frames_40_original_scaled", help=".h5 file path for the charades s3d features.")
-parser.add_argument('--finetune', default=0, type=int,
+    '--input_vid', default="data/charades_s3d_mixed_5c_fps_16_num_frames_40_original_scaled", help=".h5 file path for the charades s3d features.")
+parser.add_argument('-finetune', default=0, type=int,
                     help="When set true, the model finetunes the s3dg model for video")
 # S3DG parameters and dataloader
 parser.add_argument('--num_frames', type=int, default=40,
@@ -79,8 +79,8 @@ parser.add_argument('--center_crop', type=int, default=0,
                     help='random seed')
 parser.add_argument('--random_flip', type=int, default=0,
                     help='random seed')
-parser.add_argument('--video_root', default='./data/charades/videos')
-parser.add_argument('--unfreeze_layers', default=0, type=int,
+parser.add_argument('--video_root', default='data/videos')
+parser.add_argument('--unfreeze_layers', default=1, type=int,
                     help="if 1, unfreezes _5 layers, if 2 unfreezes _4 and _5 layers, if 0, unfreezes all layers")
 parser.add_argument("--text_encoder", default="lstm",
                     help="lstm or transformer", type=str)
@@ -94,7 +94,7 @@ start_time = datetime.datetime.strftime(
 if args.save_path == 'checkpoints/':
     # args.save_path += start_time
     args.save_path += 's3d_mixed_5c_fps_{0}_num_frames_{1}_text_encoder_{2}_lr_{3}_unfreeze_layer_{4}_finetune_{5}'.format(
-        args.fps, args.num_frames, args.text_encoder, args.lr, args.unfreeze_layers, finetune)
+        args.fps, args.num_frames, args.text_encoder, args.lr, args.unfreeze_layers, args.finetune)
 
 # seed for reproducibility
 torch.manual_seed(1234)
@@ -192,7 +192,7 @@ decoder.train()
 os.makedirs(args.save_path, exist_ok=True)
 with open(os.path.join(args.save_path, "args_{0}.txt".format(start_time)), "w") as f:
     f.write(str(args))
-f.close()wf
+f.close()
 
 running_loss = 0.0
 train_begin = datetime.datetime.utcnow()
@@ -236,21 +236,16 @@ for epoch in range(1, model_args.num_epochs + 1):
         # --------------------------------------------------------------------
         # print after every few iterations
         # --------------------------------------------------------------------
+
         if i % 500 == 0:
-            validation_losses = []
             for _, val_batch in tqdm(enumerate(dataloader_val)):
                 for key in val_batch:
                     if not isinstance(val_batch[key], list):
                         val_batch[key] = Variable(val_batch[key])
                         if args.gpuid >= 0:
                             val_batch[key] = val_batch[key].cuda()
-                enc_out = encoder(val_batch)
-                dec_out = decoder(enc_out, val_batch)
 
-                cur_loss = criterion(dec_out, val_batch['ans_ind'].view(-1))
-                validation_losses.append(cur_loss.item())
-
-            validation_loss = np.mean(validation_losses)
+            
 
             iteration = (epoch - 1) * args.iter_per_epoch + i
 
@@ -258,13 +253,12 @@ for epoch in range(1, model_args.num_epochs + 1):
                              iteration,
                              running_loss,
                              train_loss,
-                             validation_loss,
                              optimizer.param_groups[0]['lr']))
 
             # print current time, running average, learning rate, iteration, epoch
-            print("[{}][Epoch: {:3d}][Iter: {:6d}][Loss: {:6f}][val loss: {:6f}][lr: {:7f}]".format(
+            print("[{}][Epoch: {:3d}][Iter: {:6d}][Loss: {:6f}][lr: {:7f}]".format(
                 datetime.datetime.utcnow() - train_begin, epoch,
-                iteration, running_loss, validation_loss,
+                iteration, running_loss,
                 optimizer.param_groups[0]['lr']))
 
     # ------------------------------------------------------------------------

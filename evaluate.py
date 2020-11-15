@@ -19,7 +19,7 @@ from utils import process_ranks, scores_to_ranks, get_gt_ranks
 parser = argparse.ArgumentParser()
 VisDialDataset.add_cmdline_args(parser)
 LateFusionEncoder.add_cmdline_args(parser)
-parser.add_argument('--finetune', default=0, type=int)
+parser.add_argument('--finetune', default=1, type=int)
 parser.add_argument('--fps', type=int, default=16, help='') 
 parser.add_argument('--input_vid', default="data/charades_s3d_mixed_5c_fps_16_num_frames_40_original_scaled", help=".h5 file path for the charades s3d features.")
 parser.add_argument('-input_type', default='question_dialog_video', choices=['question_only',
@@ -34,10 +34,10 @@ parser.add_argument('-input_type', default='question_dialog_video', choices=['qu
                                                                      'question_dialog_video_audio'], help='Specify the inputs')
 
 parser.add_argument_group('Evaluation related arguments')
-parser.add_argument('-load_path', default='/nethome/halamri3/cvpr2020/avsd/checkpoints/nofinetune/14-Nov-2020-18:38:13/model_epoch_18.pth', help='Checkpoint to load path from')
+parser.add_argument('-load_path', default='/nethome/halamri3/cvpr2020/avsd/checkpoints/s3d_mixed_5c_fps_16_num_frames_40_text_encoder_lstm_lr_0.001_unfreeze_layer_1/model_epoch_2.pth', help='Checkpoint to load path from')
 parser.add_argument('-split', default='test', choices=['val', 'test', 'train'], help='Split to evaluate on')
 parser.add_argument('-use_gt', action='store_true', help='Whether to use ground truth for retrieving ranks')
-parser.add_argument('-batch_size', default=12, type=int, help='Batch size')
+parser.add_argument('-batch_size', default=4, type=int, help='Batch size')
 parser.add_argument('-gpuid', default=0, type=int, help='GPU id to use')
 parser.add_argument('-overfit', action='store_true', help='Use a batch of only 5 examples, useful for debugging')
 parser.add_argument('--video_root', default='data/videos/')
@@ -72,7 +72,6 @@ if args.gpuid >= 0:
 # ----------------------------------------------------------------------------
 # read saved model and args
 # ----------------------------------------------------------------------------
-
 components = torch.load(args.load_path)
 model_args = components['model_args']
 model_args.gpuid = args.gpuid
@@ -87,8 +86,7 @@ for arg in vars(args):
 # ----------------------------------------------------------------------------
 # loading dataset wrapping with a dataloader
 # ----------------------------------------------------------------------------
-
-dataset = VisDialDataset(args, [args.split])
+dataset = VisDialDataset(args, ['test'])
 dataloader = DataLoader(dataset,
                         batch_size=args.batch_size,
                         shuffle=False,
