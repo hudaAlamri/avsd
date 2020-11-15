@@ -34,7 +34,7 @@ parser.add_argument('-input_type', default='question_dialog_video', choices=['qu
                                                                      'question_dialog_video_audio'], help='Specify the inputs')
 
 parser.add_argument_group('Evaluation related arguments')
-parser.add_argument('-load_path', default='/nethome/halamri3/cvpr2020/avsd/checkpoints/nofinetune/14-Nov-2020-18:38:13/model_epoch_18.pth', help='Checkpoint to load path from')
+parser.add_argument('-load_path', default='/nethome/halamri3/cvpr2020/avsd/checkpoints/nofinetune/14-Nov-2020-18:38:13/model_final.pth', help='Checkpoint to load path from')
 parser.add_argument('-split', default='test', choices=['val', 'test', 'train'], help='Split to evaluate on')
 parser.add_argument('-use_gt', action='store_true', help='Whether to use ground truth for retrieving ranks')
 parser.add_argument('-batch_size', default=12, type=int, help='Batch size')

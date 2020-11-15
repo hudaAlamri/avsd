@@ -21,7 +21,7 @@ VisDialDataset.add_cmdline_args(parser)
 LateFusionEncoder.add_cmdline_args(parser)
 
 parser.add_argument_group('Input modalites arguments')
-parser.add_argument('-input_type', default='question_dialog_video', choices=['question_only',
+parser.add_argument('-input_type', default='question_video', choices=['question_only',
                                                                              'question_dialog',
                                                                              'question_audio',
                                                                              'question_image',
@@ -64,8 +64,8 @@ parser.add_argument('-save_path', default='checkpoints/',
 parser.add_argument('-save_step', default=2, type=int,
                     help='Save checkpoint after every save_step epochs')
 parser.add_argument(
-    '--input_vid', default="./data/charades/charades_s3d_mixed_5c_fps_16_num_frames_40_original_scaled", help=".h5 file path for the charades s3d features.")
-parser.add_argument('--finetune', default=0, type=int,
+    '--input_vid', default="data/charades_s3d_mixed_5c_fps_16_num_frames_40_original_scaled", help=".h5 file path for the charades s3d features.")
+parser.add_argument('--finetune', default=1, type=int,
                     help="When set true, the model finetunes the s3dg model for video")
 # S3DG parameters and dataloader
 parser.add_argument('--num_frames', type=int, default=40,
@@ -79,8 +79,8 @@ parser.add_argument('--center_crop', type=int, default=0,
                     help='random seed')
 parser.add_argument('--random_flip', type=int, default=0,
                     help='random seed')
-parser.add_argument('--video_root', default='./data/charades/videos')
-parser.add_argument('--unfreeze_layers', default=0, type=int,
+parser.add_argument('--video_root', default='data/videos')
+parser.add_argument('--unfreeze_layers', default=1, type=int,
                     help="if 1, unfreezes _5 layers, if 2 unfreezes _4 and _5 layers, if 0, unfreezes all layers")
 # ----------------------------------------------------------------------------
 # input arguments and options
@@ -89,7 +89,7 @@ parser.add_argument('--unfreeze_layers', default=0, type=int,
 args = parser.parse_args()
 start_time = datetime.datetime.strftime(
     datetime.datetime.utcnow(), '%d-%b-%Y-%H:%M:%S')
-if args.save_path == 'checkpoints/':
+if args.save_path == 'checkpoints/withfinetune_notext/':
     args.save_path += start_time
 
 # seed for reproducibility
