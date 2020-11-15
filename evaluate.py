@@ -19,8 +19,10 @@ from utils import process_ranks, scores_to_ranks, get_gt_ranks
 parser = argparse.ArgumentParser()
 VisDialDataset.add_cmdline_args(parser)
 LateFusionEncoder.add_cmdline_args(parser)
-
-parser.add_argument('-input_type', default='question_dialog_video_audio', choices=['question_only',
+parser.add_argument('--finetune', default=0, type=int)
+parser.add_argument('--fps', type=int, default=16, help='') 
+parser.add_argument('--input_vid', default="data/charades_s3d_mixed_5c_fps_16_num_frames_40_original_scaled", help=".h5 file path for the charades s3d features.")
+parser.add_argument('-input_type', default='question_dialog_video', choices=['question_only',
                                                                      'question_dialog',
                                                                      'question_audio',
                                                                      'question_image',
@@ -32,16 +34,27 @@ parser.add_argument('-input_type', default='question_dialog_video_audio', choice
                                                                      'question_dialog_video_audio'], help='Specify the inputs')
 
 parser.add_argument_group('Evaluation related arguments')
-parser.add_argument('-load_path', default='checkpoints/13-Jun-2019-16:22:48/model_epoch_14.pth', help='Checkpoint to load path from')
+parser.add_argument('-load_path', default='/nethome/halamri3/cvpr2020/avsd/checkpoints/nofinetune/14-Nov-2020-18:38:13/model_epoch_18.pth', help='Checkpoint to load path from')
 parser.add_argument('-split', default='test', choices=['val', 'test', 'train'], help='Split to evaluate on')
 parser.add_argument('-use_gt', action='store_true', help='Whether to use ground truth for retrieving ranks')
 parser.add_argument('-batch_size', default=12, type=int, help='Batch size')
 parser.add_argument('-gpuid', default=0, type=int, help='GPU id to use')
 parser.add_argument('-overfit', action='store_true', help='Use a batch of only 5 examples, useful for debugging')
-
+parser.add_argument('--video_root', default='data/videos/')
 parser.add_argument_group('Submission related arguments')
 parser.add_argument('-save_ranks', action='store_true', help='Whether to save retrieved ranks')
 parser.add_argument('-save_path', default='logs/ranks.json', help='Path of json file to save ranks')
+parser.add_argument('--random_flip', type=int, default=0, help='random seed')
+parser.add_argument('--crop_only', type=int, default=1,
+                            help='random seed')
+parser.add_argument('--center_crop', type=int, default=0,
+                            help='random seed')
+parser.add_argument('--num_frames', type=int, default=40,
+                            help='random seed')
+parser.add_argument('--video_size', type=int, default=224,
+                            help='random seed')
+
+
 # ----------------------------------------------------------------------------
 # input arguments and options
 # ----------------------------------------------------------------------------

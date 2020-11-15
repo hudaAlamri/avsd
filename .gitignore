@@ -35,6 +35,7 @@ logs/
 results/
 log/
 launcher.sh
+data
 # IPython Notebook
 .ipynb_checkpoints
 data
