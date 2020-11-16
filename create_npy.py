@@ -22,7 +22,8 @@ class CustomDataset(Dataset):
         super(CustomDataset, self).__init__()
         self.args = args
         self.path = path
-        self.fl_list = self.get_filenames(os.path.join(args.video_root, path))
+        self.fl_list = self.get_filenames(
+            os.path.join(args.video_root, path))
 
     def __len__(self):
         return len(self.fl_list)
@@ -52,7 +53,7 @@ class CustomDataset(Dataset):
             aw, ah = random.uniform(0, 1), random.uniform(0, 1)
         if self.args.crop_only:
             '''
-            Changes from the original code, because we have few videos that have <224 resolution and needs to be scaled up after cropping, and cropping needs to take care of the size of the image which it did not before. 
+            Changes from the original code, because we have few videos that have <224 resolution and needs to be scaled up after cropping, and cropping needs to take care of the size of the image which it did not before.
             cmd = (cmd.crop('(iw - {})*{}'.format(self.args.video_size, aw),
                          '(ih - {})*{}'.format(self.args.video_size, ah),
                          str(self.args.video_size), str(self.args.video_size))
@@ -100,7 +101,7 @@ class CustomDataset(Dataset):
             self.args.video_root, self.path, video_file)
         vid = self._get_video(video_path)
         np.save(write_file, vid)
-        return 0
+        return video_file
 
 
 def main(args):
@@ -114,10 +115,12 @@ def main(args):
         batch_size=1,
         shuffle=False, drop_last=True)
 
-    for i, batch in tqdm(enumerate(dataloader)):
-        print("train ", i)
-    for i, batch in tqdm(enumerate(dataloader_val)):
-        print("val ", i)
+    if args.train:
+        for i, batch in tqdm(enumerate(dataloader)):
+            print("train ", batch)
+    if args.test:
+        for i, batch in tqdm(enumerate(dataloader_val)):
+            print("val ", batch)
 
 
 if __name__ == "__main__":
@@ -136,6 +139,8 @@ if __name__ == "__main__":
                         help='random seed')
     parser.add_argument('--random_flip', type=int, default=0,
                         help='random seed')
+    parser.add_argument('--train', default=1)
+    parser.add_argument('--test', default=1)
     args = parser.parse_args()
     args.train_val_path = "train_val"
     args.test_path = "test"

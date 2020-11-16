@@ -246,13 +246,10 @@ class VisDialDataset(Dataset):
             )
         if self.args.random_flip and random.uniform(0, 1) > 0.5:
             cmd = cmd.hflip()
-        try:
-            out, _ = (
-                cmd.output('pipe:', format='rawvideo', pix_fmt='rgb24')
-                .run(capture_stdout=True, quiet=True)
-            )
-        except:
-            print(video_path, cmd)
+        out, _ = (
+            cmd.output('pipe:', format='rawvideo', pix_fmt='rgb24')
+            .run(capture_stdout=True, quiet=True)
+        )
 
         video = np.frombuffer(out, np.uint8).reshape(
             [-1, self.args.video_size, self.args.video_size, 3])
