@@ -92,7 +92,7 @@ parser.add_argument("--numpy_path", default="./data/charades")
 # ----------------------------------------------------------------------------
 
 args = parser.parse_args()
-args.numpy_path += "num_frames_{}".format(args.num_frames)
+args.numpy_path += "/num_frames_{}".format(args.num_frames)
 start_time = datetime.datetime.strftime(
     datetime.datetime.utcnow(), '%d-%b-%Y-%H:%M:%S')
 if args.save_path == 'checkpoints/':

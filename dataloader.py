@@ -283,9 +283,9 @@ class VisDialDataset(Dataset):
                 if dtype == "test":
                     f_dtype = "test"
                 if self.args.use_npy:
-                    video_path = os.path.join(numpy_path, vid_id)
-                    item['vid_feat'] = np.load(
-                        video_path.replace(".mp4", ".npy"))
+                    video_path = os.path.join(self.args.numpy_path, vid_id)
+                    item['vid_feat'] = torch.from_numpy(np.load(
+                        video_path.replace(".mp4", ".npy")))
                 else:
                     video_path = os.path.join(
                         self.args.video_root, f_dtype, vid_id)
