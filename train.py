@@ -31,6 +31,15 @@ parser.add_argument('-input_type', default='question_video', choices=['question_
                                                                              'question_dialog_image',
                                                                              'question_video_audio',
                                                                              'question_dialog_video_audio'], help='Specify the inputs')
+parser.add_argument('-input_type', default='Q_DH_V', choices=['Q_only','Q_DH',
+                                                            'Q_A',
+                                                            'Q_I',
+                                                            'Q_V',
+                                                            'Q_C_I',
+                                                            'Q_DH_V',
+                                                            'Q_DH_I',
+                                                            'Q_V_A',
+                                                            'Q_DH_V_A'], help='Specify the inputs')
 
 parser.add_argument_group('Encoder Decoder choice arguments')
 parser.add_argument('-encoder', default='lf-ques-im-hist',
@@ -41,11 +50,11 @@ parser.add_argument('-decoder', default='disc',
                     choices=['disc'], help='Decoder to use for training')
 
 parser.add_argument_group('Optimization related arguments')
-parser.add_argument('-num_epochs', default=20, type=int, help='Epochs')
+parser.add_argument('-num_epochs', default=40, type=int, help='Epochs')
 parser.add_argument('-batch_size', default=12, type=int, help='Batch size')
 parser.add_argument('-lr', default=1e-3, type=float, help='Learning rate')
 parser.add_argument('-lr_decay_rate', default=0.9997592083,
-                    type=float, help='Decay for lr')
+                    type=float, help='Decay  for lr')
 parser.add_argument('-min_lr', default=5e-5, type=float,
                     help='Minimum learning rate')
 parser.add_argument('-weight_init', default='xavier',
@@ -66,10 +75,12 @@ parser.add_argument('-save_step', default=2, type=int,
 parser.add_argument(
     '--input_vid', default="data/charades_s3d_mixed_5c_fps_16_num_frames_40_original_scaled", help=".h5 file path for the charades s3d features.")
 parser.add_argument('--finetune', default=1, type=int,
+=======
+parser.add_argument('--finetune', default=0, type=int,
                     help="When set true, the model finetunes the s3dg model for video")
 # S3DG parameters and dataloader
 parser.add_argument('--num_frames', type=int, default=40,
-                    help='random seed')
+                    help='num_frame')
 parser.add_argument('--video_size', type=int, default=224,
                     help='random seed')
 parser.add_argument('--fps', type=int, default=16, help='')
@@ -84,18 +95,22 @@ parser.add_argument('--unfreeze_layers', default=1, type=int,
                     help="if 1, unfreezes _5 layers, if 2 unfreezes _4 and _5 layers, if 0, unfreezes all layers")
 parser.add_argument("--text_encoder", default="lstm",
                     help="lstm or transformer", type=str)
+parser.add_argument("--use_npy", default=1,
+                    help="Uses npy instead of reading from videos")
+parser.add_argument("--numpy_path", default="data/charades")
 # ----------------------------------------------------------------------------
 # input arguments and options
 # ----------------------------------------------------------------------------
 
 args = parser.parse_args()
+args.numpy_path += "/num_frames_{}".format(args.num_frames)
 start_time = datetime.datetime.strftime(
     datetime.datetime.utcnow(), '%d-%b-%Y-%H:%M:%S')
 
 if args.save_path == 'checkpoints/':
     # args.save_path += start_time
-    args.save_path += 's3d_mixed_5c_fps_{0}_num_frames_{1}_text_encoder_{2}_lr_{3}_unfreeze_layer_{4}'.format(
-        args.fps, args.num_frames, args.text_encoder, args.lr, args.unfreeze_layers)
+    args.save_path += 'input_type_{0}_s3d_mixed_5c_fps_{1}_num_frames_{2}_text_encoder_{3}_lr_{4}_unfreeze_layer_{5}_finetune_{6}_use_npy_{7}'.format(
+        args.input_type, args.fps, args.num_frames, args.text_encoder, args.lr, args.unfreeze_layers, args.finetune, args.use_npy)
 
 # seed for reproducibility
 torch.manual_seed(1234)
@@ -139,7 +154,6 @@ dataloader_val = DataLoader(dataset_val,
                             batch_size=args.batch_size,
                             shuffle=False,
                             collate_fn=dataset.collate_fn)
-
 # ----------------------------------------------------------------------------
 # setting model args
 # ----------------------------------------------------------------------------
@@ -237,8 +251,12 @@ for epoch in range(1, model_args.num_epochs + 1):
         # --------------------------------------------------------------------
         # print after every few iterations
         # --------------------------------------------------------------------
-        if i % 500 == 0:
+    
+        if i % 200 == 0:
+
+            #print("Running validation")
             validation_losses = []
+
             for _, val_batch in tqdm(enumerate(dataloader_val)):
                 for key in val_batch:
                     if not isinstance(val_batch[key], list):
@@ -252,9 +270,8 @@ for epoch in range(1, model_args.num_epochs + 1):
                 validation_losses.append(cur_loss.item())
 
             validation_loss = np.mean(validation_losses)
-
             iteration = (epoch - 1) * args.iter_per_epoch + i
-
+            
             log_loss.append((epoch,
                              iteration,
                              running_loss,
@@ -267,7 +284,7 @@ for epoch in range(1, model_args.num_epochs + 1):
                 datetime.datetime.utcnow() - train_begin, epoch,
                 iteration, running_loss, validation_loss,
                 optimizer.param_groups[0]['lr']))
-
+        
     # ------------------------------------------------------------------------
     # save checkpoints and final model
     # ------------------------------------------------------------------------

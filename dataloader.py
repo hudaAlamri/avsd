@@ -112,7 +112,7 @@ class VisDialDataset(Dataset):
                 self.data[save_label.format(dtype)] = torch.from_numpy(
                     np.array(ques_file[load_label.format(dtype)], dtype='int64'))
 
-            if 'video' in args.input_type:
+            if 'V' in args.input_type:
                 print("Reading video features...")
 
                 # Charades dataset features are all saved in one h5 file as a key, feat dictionary
@@ -128,7 +128,7 @@ class VisDialDataset(Dataset):
                 self.data[dtype + '_img_fnames'] = img_fnames
                 self.data[dtype + '_vid_fv'] = vid_feats
 
-            if 'image' in args.input_type:
+            if 'I' in args.input_type:
                 print("Reading image features...")
                 img_feats = torch.from_numpy(
                     np.array(img_file['images_' + dtype]))
@@ -141,7 +141,7 @@ class VisDialDataset(Dataset):
                 self.data[dtype + '_img_fnames'] = img_fnames
                 self.data[dtype + '_img_fv'] = img_feats
 
-            if 'audio' in args.input_type:
+            if 'A' in args.input_type:
                 print("Reading audio features...")
                 audio_feats = torch.from_numpy(
                     np.array(audio_file['images_' + dtype]))
@@ -159,9 +159,6 @@ class VisDialDataset(Dataset):
 
         # reduce amount of data for preprocessing in fast mode
         # TODO
-        if args.overfit:
-            print('\n \n \n ---------->> NOT IMPLEMENTED OVERFIT CASE  <-----\n \n \n ')
-
         self.num_data_points = {}
         for dtype in subsets:
             self.num_data_points[dtype] = len(self.data[dtype + '_ques'])
@@ -172,7 +169,7 @@ class VisDialDataset(Dataset):
         print("\tMax ans len: {}".format(self.max_ans_len))
 
         # prepare history
-        if 'dialog' in args.input_type or 'caption' in args.input_type:
+        if 'DH' in args.input_type or 'C' in args.input_type:
             for dtype in subsets:
                 self._process_history(dtype)
 
@@ -187,6 +184,10 @@ class VisDialDataset(Dataset):
             self._split = 'train'
         else:
             self._split = subsets[0]
+
+        if args.overfit:
+            self.num_data_points['train'] = 5
+            self.num_data_points['val'] = 5
 
     @property
     def split(self):
@@ -246,13 +247,10 @@ class VisDialDataset(Dataset):
             )
         if self.args.random_flip and random.uniform(0, 1) > 0.5:
             cmd = cmd.hflip()
-        try:
-            out, _ = (
-                cmd.output('pipe:', format='rawvideo', pix_fmt='rgb24')
-                .run(capture_stdout=True, quiet=True)
-            )
-        except:
-            print(video_path, cmd)
+        out, _ = (
+            cmd.output('pipe:', format='rawvideo', pix_fmt='rgb24')
+            .run(capture_stdout=True, quiet=True)
+        )
 
         video = np.frombuffer(out, np.uint8).reshape(
             [-1, self.args.video_size, self.args.video_size, 3])
@@ -274,7 +272,7 @@ class VisDialDataset(Dataset):
         item['num_rounds'] = self.data[dtype + '_num_rounds'][idx]
 
         # get video features
-        if 'video' in self.args.input_type:
+        if 'V' in self.args.input_type:
             item['img_fnames'] = self.data[dtype + '_img_fnames'][idx]
             # item['img_fnames'] is as train_val/vid_id.jpg hence the splits
             vid_id = item['img_fnames'].split("/")[-1].split(".")[0]
@@ -284,25 +282,30 @@ class VisDialDataset(Dataset):
             if self.args.finetune:
                 f_dtype = "train_val"
                 if dtype == "test":
-                    f_dtype + "test"
-                video_path = os.path.join(
-                    self.args.video_root, f_dtype, vid_id)
-                item['vid_feat'] = self._get_video(video_path)
+                    f_dtype = "test"
+                if self.args.use_npy:
+                    video_path = os.path.join(self.args.numpy_path, vid_id)
+                    item['vid_feat'] = torch.from_numpy(np.load(
+                        video_path.replace(".mp4", ".npy")))
+                else:
+                    video_path = os.path.join(
+                        self.args.video_root, f_dtype, vid_id)
+                    item['vid_feat'] = self._get_video(video_path)
             else:
                 item['vid_feat'] = torch.from_numpy(
                     self.data[dtype + '_vid_fv'][vid_id]).reshape(-1)
 
         # get image features
-        if 'image' in self.args.input_type:
+        if 'I' in self.args.input_type:
             item['img_feat'] = self.data[dtype + '_img_fv'][idx]
             item['img_fnames'] = self.data[dtype + '_img_fnames'][idx]
 
         # get audio features
-        if 'audio' in self.args.input_type:
+        if 'A' in self.args.input_type:
             item['audio_feat'] = self.data[dtype + '_audio_fv'][idx]
 
         # get history tokens
-        if 'dialog' in self.args.input_type or 'caption' in self.args.input_type:
+        if 'DH' in self.args.input_type or 'caption' in self.args.input_type:
             item['hist_len'] = self.data[dtype + '_hist_len'][idx]
             item['hist_len'][item['hist_len'] == 0] += 1
             item['hist'] = self.data[dtype + '_hist'][idx]
@@ -388,7 +391,7 @@ class VisDialDataset(Dataset):
                                   max_ques_len + max_ans_len).long()
         hist_len = torch.zeros(num_convs, num_rounds).long()
 
-        if 'dialog' in self.args.input_type:
+        if 'DH' in self.args.input_type:
             # go over each question and append it with answer
             for th_id in range(num_convs):
                 clen = cap_len[th_id]
