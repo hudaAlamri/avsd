@@ -20,7 +20,7 @@ parser = argparse.ArgumentParser()
 VisDialDataset.add_cmdline_args(parser)
 LateFusionEncoder.add_cmdline_args(parser)
 
-parser.add_argument('-input_type', default='question_dialog_video_audio', choices=['question_only',
+parser.add_argument('-input_type', default='question_dialog_video', choices=['question_only',
                                                                                    'question_dialog',
                                                                                    'question_audio',
                                                                                    'question_image',
@@ -32,7 +32,7 @@ parser.add_argument('-input_type', default='question_dialog_video_audio', choice
                                                                                    'question_dialog_video_audio'], help='Specify the inputs')
 
 parser.add_argument_group('Evaluation related arguments')
-parser.add_argument('-load_path', default='checkpoints/13-Jun-2019-16:22:48/model_epoch_14.pth',
+parser.add_argument('-load_path', default='checkpoints/s3d_mixed_5c_fps_16_num_frames_40_text_encoder_lstm_lr_0.001_unfreeze_layer_1_finetune_1_use_npy_1/model_final.pth',
                     help='Checkpoint to load path from')
 parser.add_argument('-split', default='test',
                     choices=['val', 'test', 'train'], help='Split to evaluate on')
@@ -46,10 +46,10 @@ parser.add_argument('-overfit', action='store_true',
 parser.add_argument_group('Submission related arguments')
 parser.add_argument('-save_ranks', action='store_true',
                     help='Whether to save retrieved ranks')
-parser.add_argument('-save_path', default='logs/ranks.json',
+parser.add_argument('-save_path', default='logs/qes_dialog_videos_ranks.json',
                     help='Path of json file to save ranks')
 parser.add_argument(
-    '--input_vid', default="./data/charades/charades_s3d_mixed_5c_fps_16_num_frames_40_original_scaled", help=".h5 file path for the charades s3d features.")
+    '--input_vid', default="data/charades_s3d_mixed_5c_fps_16_num_frames_40_original_scaled", help=".h5 file path for the charades s3d features.")
 parser.add_argument('--finetune', default=0, type=int,
                     help="When set true, the model finetunes the s3dg model for video")
 # S3DG parameters and dataloader
@@ -64,7 +64,7 @@ parser.add_argument('--center_crop', type=int, default=0,
                     help='random seed')
 parser.add_argument('--random_flip', type=int, default=0,
                     help='random seed')
-parser.add_argument('--video_root', default='./data/charades/videos')
+parser.add_argument('--video_root', default='data/charades/videos')
 parser.add_argument('--unfreeze_layers', default=0, type=int,
                     help="if 1, unfreezes _5 layers, if 2 unfreezes _4 and _5 layers, if 0, unfreezes all layers")
 parser.add_argument("--text_encoder", default="lstm",

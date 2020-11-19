@@ -43,7 +43,7 @@ class LateFusionEncoder(nn.Module):
             if self.args.unfreeze_layers:
                 self.__freeze_s3dg_layers()
 
-        if 'dialog' in args.input_type or 'caption' in args.input_type:
+        if 'DH' in args.input_type or 'C' in args.input_type:
             self.hist_rnn = nn.LSTM(args.embed_size, args.rnn_hidden_size,
                                     args.num_layers, batch_first=True, dropout=args.dropout)
             self.hist_rnn = DynamicRNN(self.hist_rnn)
@@ -57,20 +57,20 @@ class LateFusionEncoder(nn.Module):
 
         self.dropout = nn.Dropout(p=args.dropout)
         # fusion layer
-        if args.input_type == 'question_only':
+        if args.input_type == 'Q_only':
             fusion_size = args.rnn_hidden_size
-        if args.input_type == 'question_dialog':
+        if args.input_type == 'Q_DH':
             fusion_size = args.rnn_hidden_size * 2
-        if args.input_type == 'question_audio':
+        if args.input_type == 'Q_A':
             fusion_size = args.rnn_hidden_size + args.audio_feature_size
-        if args.input_type == 'question_image' or args.input_type == 'question_video':
+        if args.input_type == 'Q_I' or args.input_type == 'Q_V':
             fusion_size = args.img_feature_size + args.rnn_hidden_size
-        if args.input_type == 'question_caption_image' or args.input_type == 'question_dialog_video' or args.input_type == 'question_dialog_image':
+        if args.input_type == 'Q_C_I' or args.input_type == 'Q_DH_V' or args.input_type == 'Q_DH_I':
             fusion_size = args.img_feature_size + args.rnn_hidden_size * 2
-        if args.input_type == 'question_video_audio':
+        if args.input_type == 'Q_V_A':
             fusion_size = args.img_feature_size + \
                 args.rnn_hidden_size + args.audio_feature_size
-        if args.input_type == 'question_dialog_video_audio':
+        if args.input_type == 'Q_DH_V_A':
             fusion_size = args.img_feature_size + \
                 args.rnn_hidden_size * 2 + args.audio_feature_size
 
@@ -93,21 +93,21 @@ class LateFusionEncoder(nn.Module):
                 param.requires_grad = True
 
     def forward(self, batch):
-        if 'image' in self.args.input_type:
+        if 'I' in self.args.input_type:
             img = batch['img_feat']
             # repeat image feature vectors to be provided for every round
             img = img.view(-1, 1, self.args.img_feature_size)
             img = img.repeat(1, self.args.max_ques_count, 1)
             img = img.view(-1, self.args.img_feature_size)
 
-        if 'audio' in self.args.input_type:
+        if 'A' in self.args.input_type:
             audio = batch['audio_feat']
             # repeat audio feature vectors to be provided for every round
             audio = audio.view(-1, 1, self.args.audio_feature_size)
             audio = audio.repeat(1, self.args.max_ques_count, 1)
             audio = audio.view(-1, self.args.audio_feature_size)
 
-        if 'video' in self.args.input_type:
+        if 'V' in self.args.input_type:
             if self.args.finetune:
                 # In this case, vid_feat has video frames.Multiplication by 255 because s3d video frames are normalised
                 vid = self.video_embed(batch['vid_feat'].float())[
@@ -119,7 +119,7 @@ class LateFusionEncoder(nn.Module):
             vid = vid.repeat(1, self.args.max_ques_count, 1)
             vid = vid.view(-1, self.args.vid_feature_size)
 
-        if 'dialog' in self.args.input_type or 'caption' in self.args.input_type:
+        if 'DH' in self.args.input_type or 'C' in self.args.input_type:
             hist = batch['hist']
             # embed history
             hist = hist.view(-1, hist.size(2))
@@ -133,25 +133,25 @@ class LateFusionEncoder(nn.Module):
         ques_embed = self.word_embed(ques)
         ques_embed = self.ques_rnn(ques_embed, batch['ques_len'])
 
-        if self.args.input_type == 'question_only':
+        if self.args.input_type == 'Q_only':
             fused_vector = ques_embed
-        if self.args.input_type == 'question_dialog':
+        if self.args.input_type == 'Q_DH':
             fused_vector = torch.cat((ques_embed, hist_embed), 1)
-        if self.args.input_type == 'question_audio':
+        if self.args.input_type == 'Q_A':
             fused_vector = torch.cat((audio, ques_embed), 1)
-        if self.args.input_type == 'question_image':
+        if self.args.input_type == 'Q_I':
             fused_vector = torch.cat((img, ques_embed), 1)
-        if self.args.input_type == 'question_video':
+        if self.args.input_type == 'Q_V':
             fused_vector = torch.cat((vid, ques_embed), 1)
-        if self.args.input_type == 'question_dialog_image':
+        if self.args.input_type == 'Q_DH_I':
             fused_vector = torch.cat((img, ques_embed, hist_embed), 1)
-        if self.args.input_type == 'question_dialog_video':
+        if self.args.input_type == 'Q_DH_V':
             fused_vector = torch.cat((vid, ques_embed, hist_embed), 1)
-        if self.args.input_type == 'question_caption_image':
+        if self.args.input_type == 'Q_C_I':
             fused_vector = torch.cat((img, ques_embed, hist_embed), 1)
-        if self.args.input_type == 'question_video_audio':
+        if self.args.input_type == 'Q_V_A':
             fused_vector = torch.cat((vid, audio, ques_embed), 1)
-        if self.args.input_type == 'question_dialog_video_audio':
+        if self.args.input_type == 'Q_DH_V_A':
             fused_vector = torch.cat((vid, audio, ques_embed, hist_embed), 1)
 
         fused_vector = self.dropout(fused_vector)

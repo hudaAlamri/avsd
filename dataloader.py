@@ -159,9 +159,6 @@ class VisDialDataset(Dataset):
 
         # reduce amount of data for preprocessing in fast mode
         # TODO
-        if args.overfit:
-            print('\n \n \n ---------->> NOT IMPLEMENTED OVERFIT CASE  <-----\n \n \n ')
-
         self.num_data_points = {}
         for dtype in subsets:
             self.num_data_points[dtype] = len(self.data[dtype + '_ques'])
@@ -187,6 +184,10 @@ class VisDialDataset(Dataset):
             self._split = 'train'
         else:
             self._split = subsets[0]
+
+        if args.overfit:
+            self.num_data_points['train'] = 5
+            self.num_data_points['val'] = 5
 
     @property
     def split(self):
