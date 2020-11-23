@@ -21,16 +21,6 @@ VisDialDataset.add_cmdline_args(parser)
 LateFusionEncoder.add_cmdline_args(parser)
 
 parser.add_argument_group('Input modalites arguments')
-parser.add_argument('-input_type', default='question_video', choices=['question_only',
-                                                                             'question_dialog',
-                                                                             'question_audio',
-                                                                             'question_image',
-                                                                             'question_video',
-                                                                             'question_caption_image',
-                                                                             'question_dialog_video',
-                                                                             'question_dialog_image',
-                                                                             'question_video_audio',
-                                                                             'question_dialog_video_audio'], help='Specify the inputs')
 parser.add_argument('-input_type', default='Q_DH_V', choices=['Q_only','Q_DH',
                                                             'Q_A',
                                                             'Q_I',
@@ -50,16 +40,16 @@ parser.add_argument('-decoder', default='disc',
                     choices=['disc'], help='Decoder to use for training')
 
 parser.add_argument_group('Optimization related arguments')
-parser.add_argument('-num_epochs', default=40, type=int, help='Epochs')
+parser.add_argument('-num_epochs', default=45, type=int, help='Epochs')
 parser.add_argument('-batch_size', default=12, type=int, help='Batch size')
-parser.add_argument('-lr', default=1e-3, type=float, help='Learning rate')
+parser.add_argument('-lr', default=0.001, type=float, help='Learning rate')
 parser.add_argument('-lr_decay_rate', default=0.9997592083,
                     type=float, help='Decay  for lr')
 parser.add_argument('-min_lr', default=5e-5, type=float,
                     help='Minimum learning rate')
 parser.add_argument('-weight_init', default='xavier',
                     choices=['xavier', 'kaiming'], help='Weight initialization strategy')
-parser.add_argument('-weight_decay', default=0.00075,
+parser.add_argument('-weight_decay', default=5e-4,
                     help='Weight decay for l2 regularization')
 parser.add_argument('-overfit', action='store_true',
                     help='Overfit on 5 examples, meant for debugging')
@@ -70,14 +60,11 @@ parser.add_argument('-load_path', default='',
                     help='Checkpoint to load path from')
 parser.add_argument('-save_path', default='checkpoints/',
                     help='Path to save checkpoints')
-parser.add_argument('-save_step', default=2, type=int,
+parser.add_argument('-save_step', default=6, type=int,
                     help='Save checkpoint after every save_step epochs')
-parser.add_argument(
-    '--input_vid', default="data/charades_s3d_mixed_5c_fps_16_num_frames_40_original_scaled", help=".h5 file path for the charades s3d features.")
-parser.add_argument('--finetune', default=1, type=int,
-=======
-parser.add_argument('--finetune', default=0, type=int,
-                    help="When set true, the model finetunes the s3dg model for video")
+parser.add_argument('--input_vid', default="data/charades_s3d_mixed_5c_fps_16_num_frames_40_original_scaled", help=".h5 file path for the charades s3d features.")
+parser.add_argument('-finetune', default=1, type=int, 
+        help="When set true, the model finetunes the s3dg model for video")
 # S3DG parameters and dataloader
 parser.add_argument('--num_frames', type=int, default=40,
                     help='num_frame')
@@ -174,14 +161,13 @@ print("{} iter per epoch.".format(args.iter_per_epoch))
 
 encoder = Encoder(model_args)
 decoder = Decoder(model_args, encoder)
-total_params = sum(p.numel() for p in encoder.parameters() if p.requires_grad)
+total_params = sum(p.numel() for p in encoder.parameters() if p.requires_grad) +  sum(p.numel() for p in decoder.parameters() if p.requires_grad) 
 print("Total number of encoder params {0}".format(total_params))
 if args.finetune:
     total_params = sum(p.numel()
                        for p in encoder.video_embed.parameters() if p.requires_grad)
     print("Total number of s3dg params {0}".format(total_params))
-optimizer = optim.Adam(list(encoder.parameters(
-)) + list(decoder.parameters()), lr=args.lr, weight_decay=args.weight_decay)
+optimizer = optim.Adam(list(encoder.parameters()) + list(decoder.parameters()), lr=args.lr, weight_decay=args.weight_decay)
 criterion = nn.CrossEntropyLoss()
 scheduler = lr_scheduler.StepLR(
     optimizer, step_size=1, gamma=args.lr_decay_rate)
