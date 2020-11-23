@@ -15,6 +15,7 @@ from torch.utils.data import DataLoader
 from dataloader import VisDialDataset
 from encoders import Encoder, LateFusionEncoder
 from decoders import Decoder
+from utils import visualize
 
 parser = argparse.ArgumentParser()
 VisDialDataset.add_cmdline_args(parser)
@@ -85,6 +86,12 @@ parser.add_argument("--text_encoder", default="lstm",
 parser.add_argument("--use_npy", default=1,
                     help="Uses npy instead of reading from videos")
 parser.add_argument("--numpy_path", default="data/charades")
+
+parser.add_argument_group('Visualzing related arguments')
+parser.add_argument('-enableVis', type=int, default=1)
+parser.add_argument('-visEnvName', type=str, default='s3d_finetune')
+parser.add_argument('-server', type=str, default='127.0.0.1')
+parser.add_argument('-serverPort', type=int, default=8855)
 # ----------------------------------------------------------------------------
 # input arguments and options
 # ----------------------------------------------------------------------------
@@ -98,6 +105,14 @@ if args.save_path == 'checkpoints/':
     # args.save_path += start_time
     args.save_path += 'input_type_{0}_s3d_mixed_5c_fps_{1}_num_frames_{2}_text_encoder_{3}_lr_{4}_unfreeze_layer_{5}_finetune_{6}_use_npy_{7}'.format(
         args.input_type, args.fps, args.num_frames, args.text_encoder, args.lr, args.unfreeze_layers, args.finetune, args.use_npy)
+
+# -------------------------------------------------------------------------------------
+# setting visdom args
+# -------------------------------------------------------------------------------------
+viz = visualize.VisdomLinePlot(
+        env_name=args.visEnvName,
+        server=args.server,
+        port=args.serverPort)
 
 # seed for reproducibility
 torch.manual_seed(1234)
@@ -126,6 +141,7 @@ if args.load_path != '':
 for arg in vars(args):
     print('{:<20}: {}'.format(arg, getattr(args, arg)))
 
+viz.writeText(args)
 # ----------------------------------------------------------------------------
 # loading dataset wrapping with a dataloader
 # ----------------------------------------------------------------------------
@@ -270,7 +286,9 @@ for epoch in range(1, model_args.num_epochs + 1):
                 datetime.datetime.utcnow() - train_begin, epoch,
                 iteration, running_loss, validation_loss,
                 optimizer.param_groups[0]['lr']))
-        
+            
+            viz.plotLine('Loss','Train', 'LOSS', iteration, train_loss)
+            viz.plotLine('Loss', 'Val', 'LOSS', iteration, validation_loss)
     # ------------------------------------------------------------------------
     # save checkpoints and final model
     # ------------------------------------------------------------------------
