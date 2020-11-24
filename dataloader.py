@@ -298,7 +298,7 @@ class VisDialDataset(Dataset):
         # get image features
         if 'I' in self.args.input_type:
             item['img_feat'] = self.data[dtype + '_img_fv'][idx]
-            item['img_fnames'] = self.data[dtype + '_img_fnames'][idx]
+            item['img_fnames'] = [self.data[dtype + '_img_fnames'][idx]]
 
         # get audio features
         if 'A' in self.args.input_type:

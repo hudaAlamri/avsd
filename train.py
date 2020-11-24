@@ -16,21 +16,22 @@ from dataloader import VisDialDataset
 from encoders import Encoder, LateFusionEncoder
 from decoders import Decoder
 from utils import visualize
+from models import AVSD
 
 parser = argparse.ArgumentParser()
 VisDialDataset.add_cmdline_args(parser)
 LateFusionEncoder.add_cmdline_args(parser)
 
 parser.add_argument_group('Input modalites arguments')
-parser.add_argument('-input_type', default='Q_DH_V', choices=['Q_only','Q_DH',
-                                                            'Q_A',
-                                                            'Q_I',
-                                                            'Q_V',
-                                                            'Q_C_I',
-                                                            'Q_DH_V',
-                                                            'Q_DH_I',
-                                                            'Q_V_A',
-                                                            'Q_DH_V_A'], help='Specify the inputs')
+parser.add_argument('-input_type', default='Q_DH_V', choices=['Q_only', 'Q_DH',
+                                                              'Q_A',
+                                                              'Q_I',
+                                                              'Q_V',
+                                                              'Q_C_I',
+                                                              'Q_DH_V',
+                                                              'Q_DH_I',
+                                                              'Q_V_A',
+                                                              'Q_DH_V_A'], help='Specify the inputs')
 
 parser.add_argument_group('Encoder Decoder choice arguments')
 parser.add_argument('-encoder', default='lf-ques-im-hist',
@@ -63,29 +64,30 @@ parser.add_argument('-save_path', default='checkpoints/',
                     help='Path to save checkpoints')
 parser.add_argument('-save_step', default=6, type=int,
                     help='Save checkpoint after every save_step epochs')
-parser.add_argument('--input_vid', default="data/charades_s3d_mixed_5c_fps_16_num_frames_40_original_scaled", help=".h5 file path for the charades s3d features.")
-parser.add_argument('-finetune', default=1, type=int, 
-        help="When set true, the model finetunes the s3dg model for video")
+parser.add_argument('-input_vid', default="data/charades_s3d_mixed_5c_fps_16_num_frames_40_original_scaled",
+                    help=".h5 file path for the charades s3d features.")
+parser.add_argument('-finetune', default=1, type=int,
+                    help="When set true, the model finetunes the s3dg model for video")
 # S3DG parameters and dataloader
-parser.add_argument('--num_frames', type=int, default=40,
+parser.add_argument('-num_frames', type=int, default=40,
                     help='num_frame')
-parser.add_argument('--video_size', type=int, default=224,
+parser.add_argument('-video_size', type=int, default=224,
                     help='random seed')
-parser.add_argument('--fps', type=int, default=16, help='')
-parser.add_argument('--crop_only', type=int, default=1,
+parser.add_argument('-fps', type=int, default=16, help='')
+parser.add_argument('-crop_only', type=int, default=1,
                     help='random seed')
-parser.add_argument('--center_crop', type=int, default=0,
+parser.add_argument('-center_crop', type=int, default=0,
                     help='random seed')
-parser.add_argument('--random_flip', type=int, default=0,
+parser.add_argument('-random_flip', type=int, default=0,
                     help='random seed')
-parser.add_argument('--video_root', default='data/videos')
-parser.add_argument('--unfreeze_layers', default=1, type=int,
+parser.add_argument('-video_root', default='data/videos')
+parser.add_argument('-unfreeze_layers', default=1, type=int,
                     help="if 1, unfreezes _5 layers, if 2 unfreezes _4 and _5 layers, if 0, unfreezes all layers")
-parser.add_argument("--text_encoder", default="lstm",
+parser.add_argument("-text_encoder", default="lstm",
                     help="lstm or transformer", type=str)
-parser.add_argument("--use_npy", default=1,
+parser.add_argument("-use_npy", default=1,
                     help="Uses npy instead of reading from videos")
-parser.add_argument("--numpy_path", default="data/charades")
+parser.add_argument("-numpy_path", default="data/charades")
 
 parser.add_argument_group('Visualzing related arguments')
 parser.add_argument('-enableVis', type=int, default=1)
@@ -110,17 +112,20 @@ if args.save_path == 'checkpoints/':
 # setting visdom args
 # -------------------------------------------------------------------------------------
 viz = visualize.VisdomLinePlot(
-        env_name=args.visEnvName,
-        server=args.server,
-        port=args.serverPort)
+    env_name=args.visEnvName,
+    server=args.server,
+    port=args.serverPort)
 
 # seed for reproducibility
 torch.manual_seed(1234)
+torch.backends.cudnn.deterministic = True
+torch.autograd.set_detect_anomaly(True)
 
 # set device and default tensor type
+device = "cpu"
 if args.gpuid >= 0:
     torch.cuda.manual_seed_all(1234)
-    torch.cuda.set_device(args.gpuid)
+    args.num_gpu = torch.cuda.device_count()
 
 # transfer all options to model
 model_args = args
@@ -175,37 +180,36 @@ print("{} iter per epoch.".format(args.iter_per_epoch))
 # setup the model
 # ----------------------------------------------------------------------------
 
-encoder = Encoder(model_args)
-decoder = Decoder(model_args, encoder)
-total_params = sum(p.numel() for p in encoder.parameters() if p.requires_grad) +  sum(p.numel() for p in decoder.parameters() if p.requires_grad) 
-print("Total number of encoder params {0}".format(total_params))
+model = AVSD(model_args)
+total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+print("Total number of model params {0}".format(total_params))
 if args.finetune:
     total_params = sum(p.numel()
-                       for p in encoder.video_embed.parameters() if p.requires_grad)
+                       for p in model.encoder.video_embed.parameters() if p.requires_grad)
     print("Total number of s3dg params {0}".format(total_params))
-optimizer = optim.Adam(list(encoder.parameters()) + list(decoder.parameters()), lr=args.lr, weight_decay=args.weight_decay)
+optimizer = optim.Adam(list(model.parameters()),
+                       lr=args.lr, weight_decay=args.weight_decay)
 criterion = nn.CrossEntropyLoss()
 scheduler = lr_scheduler.StepLR(
     optimizer, step_size=1, gamma=args.lr_decay_rate)
 
 if args.load_path != '':
-    encoder.load_state_dict(components['encoder'])
-    decoder.load_state_dict(components['decoder'])
+    model._load_state_dict_(components)
     print("Loaded model from {}".format(args.load_path))
 print("Encoder: {}".format(args.encoder))
 print("Decoder: {}".format(args.decoder))
 
+device = "cuda"
 if args.gpuid >= 0:
-    encoder = encoder.cuda()
-    decoder = decoder.cuda()
-    criterion = criterion.cuda()
+    model = torch.nn.DataParallel(model, output_device=0, dim=0)
+    model = model.to(device)
+    criterion = criterion.to(device)
 
 # ----------------------------------------------------------------------------
 # training
 # ----------------------------------------------------------------------------
 
-encoder.train()
-decoder.train()
+model.train()
 os.makedirs(args.save_path, exist_ok=True)
 with open(os.path.join(args.save_path, "args_{0}.txt".format(start_time)), "w") as f:
     f.write(str(args))
@@ -229,8 +233,18 @@ for epoch in range(1, model_args.num_epochs + 1):
         # --------------------------------------------------------------------
         # forward-backward pass and optimizer step
         # --------------------------------------------------------------------
-        enc_out = encoder(batch)
-        dec_out = decoder(enc_out, batch)
+        img = batch['img_feat'] if 'I' in args.input_type else None
+        audio = batch['audio_feat'] if 'A' in args.input_type else None
+        vid = batch['vid_feat'] if 'V' in args.input_type else None
+        hist = batch['hist'] if 'DH' in args.input_type else None
+        hist_len = batch['hist_len'] if 'DH' in args.input_type else None
+        ques = batch['ques']
+        ques_len = batch["ques_len"]
+        opt = batch['opt']
+        opt_len = batch['opt_len']
+
+        dec_out = model(img, audio, vid, hist, hist_len,
+                        ques, ques_len, opt, opt_len)
 
         cur_loss = criterion(dec_out, batch['ans_ind'].view(-1))
         cur_loss.backward()
@@ -253,7 +267,7 @@ for epoch in range(1, model_args.num_epochs + 1):
         # --------------------------------------------------------------------
         # print after every few iterations
         # --------------------------------------------------------------------
-    
+
         if i % 200 == 0:
 
             #print("Running validation")
@@ -265,15 +279,23 @@ for epoch in range(1, model_args.num_epochs + 1):
                         val_batch[key] = Variable(val_batch[key])
                         if args.gpuid >= 0:
                             val_batch[key] = val_batch[key].cuda()
-                enc_out = encoder(val_batch)
-                dec_out = decoder(enc_out, val_batch)
-
+                img_v = val_batch['img_feat'] if 'I' in args.input_type else None
+                audio_v = val_batch['audio_feat'] if 'A' in args.input_type else None
+                vid_v = val_batch['vid_feat'] if 'V' in args.input_type else None
+                hist_v = val_batch['hist'] if 'DH' in args.input_type else None
+                hist_len_v = val_batch['hist_len'] if 'DH' in args.input_type else None
+                ques_v = val_batch['ques']
+                ques_len_v = val_batch["ques_len"]
+                opt_v = val_batch['opt']
+                opt_len_v = val_batch['opt_len']
+                dec_out = model(img_v, audio_v, vid_v, hist_v,
+                                hist_len_v, ques_v, ques_len_v, opt_v, opt_len_v)
                 cur_loss = criterion(dec_out, val_batch['ans_ind'].view(-1))
                 validation_losses.append(cur_loss.item())
 
             validation_loss = np.mean(validation_losses)
             iteration = (epoch - 1) * args.iter_per_epoch + i
-            
+
             log_loss.append((epoch,
                              iteration,
                              running_loss,
@@ -286,25 +308,25 @@ for epoch in range(1, model_args.num_epochs + 1):
                 datetime.datetime.utcnow() - train_begin, epoch,
                 iteration, running_loss, validation_loss,
                 optimizer.param_groups[0]['lr']))
-            
-            viz.plotLine('Loss','Train', 'LOSS', iteration, train_loss)
+
+            viz.plotLine('Loss', 'Train', 'LOSS', iteration, train_loss)
             viz.plotLine('Loss', 'Val', 'LOSS', iteration, validation_loss)
     # ------------------------------------------------------------------------
     # save checkpoints and final model
     # ------------------------------------------------------------------------
     if epoch % args.save_step == 0:
         torch.save({
-            'encoder': encoder.state_dict(),
-            'decoder': decoder.state_dict(),
+            'encoder': model.encoder.state_dict(),
+            'decoder': model.decoder.state_dict(),
             'optimizer': optimizer.state_dict(),
-            'model_args': encoder.args
+            'model_args': model.args
         }, os.path.join(args.save_path, 'model_epoch_{}.pth'.format(epoch)))
 
 torch.save({
-    'encoder': encoder.state_dict(),
-    'decoder': decoder.state_dict(),
+    'encoder': model.encoder.state_dict(),
+    'decoder': model.decoder.state_dict(),
     'optimizer': optimizer.state_dict(),
-    'model_args': encoder.args
+    'model_args': model.args
 }, os.path.join(args.save_path, 'model_final.pth'))
 
 np.save(os.path.join(args.save_path, 'log_loss'), log_loss)
