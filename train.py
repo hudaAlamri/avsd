@@ -185,7 +185,7 @@ if args.finetune:
     print("Total number of s3dg params {0}".format(total_params))
 optimizer = optim.Adam(list(model.parameters()),
                        lr=args.lr, weight_decay=args.weight_decay)
-criterion = nn.CrossEntropyLoss()
+
 scheduler = lr_scheduler.StepLR(
     optimizer, step_size=1, gamma=args.lr_decay_rate)
 
@@ -198,7 +198,6 @@ print("Decoder: {}".format(args.decoder))
 if args.gpuid >= 0:
     model = torch.nn.DataParallel(model, output_device=0, dim=0)
     model = model.to(device)
-    criterion = criterion.to(device)
 
 # ----------------------------------------------------------------------------
 # training
@@ -256,8 +255,7 @@ for epoch in range(1, model_args.num_epochs + 1):
         #     num_repeat = args.num_gpu - batch["vid_feat"].shape[0] % args.num_gpu
         #     batch = repeat_tensors(batch, num_repeat)
         new_batch = convert_list_to_tensor(batch)
-        dec_out = model(new_batch)
-        cur_loss = criterion(dec_out, batch['ans_ind'].view(-1))
+        cur_loss = model(new_batch).mean()
         cur_loss.backward()
 
         optimizer.step()
@@ -295,8 +293,7 @@ for epoch in range(1, model_args.num_epochs + 1):
                 #     num_repeat = args.num_gpu - val_batch["vid_feat"].shape[0] % args.num_gpu
                 #     val_batch = repeat_tensors(val_batch, num_repeat)
                 new_batch_v = convert_list_to_tensor(val_batch)
-                dec_out = model(new_batch)
-                cur_loss = criterion(dec_out, val_batch['ans_ind'].view(-1))
+                cur_loss = model(new_batch_v).mean()
                 validation_losses.append(cur_loss.item())
 
             validation_loss = np.mean(validation_losses)

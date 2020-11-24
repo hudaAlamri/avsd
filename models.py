@@ -12,6 +12,7 @@ class AVSD(nn.Module):
         self.args = args
         self.encoder = Encoder(args)
         self.decoder = Decoder(args, self.encoder)
+        self.criterion = nn.CrossEntropyLoss()
 
     def _load_state_dict_(self, components):
         self.encoder.load_state_dict(components['encoder'])
@@ -20,4 +21,7 @@ class AVSD(nn.Module):
     def forward(self, batch):
         enc_out = self.encoder(batch)
         dec_out = self.decoder(enc_out, batch)
-        return dec_out
+
+        cur_loss = self.criterion(dec_out, batch['ans_ind'].view(-1))
+
+        return cur_loss

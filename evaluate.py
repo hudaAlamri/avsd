@@ -200,10 +200,10 @@ if args.use_gt:
                 if args.gpuid >= 0:
                     batch[key] = batch[key].cuda()
 
-        # if not batch["vid_feat"].shape[0] % args.num_gpu == 0:
-        #     num_repeat = args.num_gpu - \
-        #         batch["vid_feat"].shape[0] % args.num_gpu
-        #     batch = repeat_tensors(batch, num_repeat)
+        if not batch["vid_feat"].shape[0] % args.num_gpu == 0:
+            num_repeat = args.num_gpu - \
+                batch["vid_feat"].shape[0] % args.num_gpu
+            batch = repeat_tensors(batch, num_repeat)
         new_batch = convert_list_to_tensor(batch)
         dec_out = model(new_batch)
         ranks = scores_to_ranks(dec_out.data)
@@ -224,10 +224,10 @@ else:
                 if args.gpuid >= 0:
                     batch[key] = batch[key].cuda()
 
-        # if not batch["vid_feat"].shape[0] % args.num_gpu == 0:
-        #     num_repeat = args.num_gpu - \
-        #         batch["vid_feat"].shape[0] % args.num_gpu
-        #     batch = repeat_tensors(batch, num_repeat)
+        if not batch["vid_feat"].shape[0] % args.num_gpu == 0:
+            num_repeat = args.num_gpu - \
+                batch["vid_feat"].shape[0] % args.num_gpu
+            batch = repeat_tensors(batch, num_repeat)
         new_batch = convert_list_to_tensor(batch)
         dec_out = model(new_batch)
         ranks = scores_to_ranks(dec_out.data)
