@@ -175,6 +175,19 @@ def convert_list_to_tensor(batch):
             new_batch[k] = v
     return new_batch
 
+
+def repeat_tensors(batch, num_repeat):
+    """In the last iterations, when the number of samples are not multiple of the num_gpu, this function will repeat the last few samples"""
+    new_batch = batch.copy()
+    for i in range(num_repeat):
+        for k, v in batch.items():
+            if isinstance(v, list):
+                new_batch[k].append(v[-1])
+            elif isinstance(v, torch.Tensor):
+                new_batch[k] = torch.cat((new_batch[k], v[-1].unsqueeze(0)), 0)
+    return new_batch
+
+
 if args.use_gt:
     # ------------------------------------------------------------------------
     # calculate automatic metrics and finish
@@ -187,6 +200,10 @@ if args.use_gt:
                 if args.gpuid >= 0:
                     batch[key] = batch[key].cuda()
 
+        # if not batch["vid_feat"].shape[0] % args.num_gpu == 0:
+        #     num_repeat = args.num_gpu - \
+        #         batch["vid_feat"].shape[0] % args.num_gpu
+        #     batch = repeat_tensors(batch, num_repeat)
         new_batch = convert_list_to_tensor(batch)
         dec_out = model(new_batch)
         ranks = scores_to_ranks(dec_out.data)
@@ -207,6 +224,10 @@ else:
                 if args.gpuid >= 0:
                     batch[key] = batch[key].cuda()
 
+        # if not batch["vid_feat"].shape[0] % args.num_gpu == 0:
+        #     num_repeat = args.num_gpu - \
+        #         batch["vid_feat"].shape[0] % args.num_gpu
+        #     batch = repeat_tensors(batch, num_repeat)
         new_batch = convert_list_to_tensor(batch)
         dec_out = model(new_batch)
         ranks = scores_to_ranks(dec_out.data)

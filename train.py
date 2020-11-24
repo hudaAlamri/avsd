@@ -149,12 +149,14 @@ dataset = VisDialDataset(args, ['train'])
 dataloader = DataLoader(dataset,
                         batch_size=args.batch_size,
                         shuffle=True,
+                        drop_last=True,
                         collate_fn=dataset.collate_fn)
 
 dataset_val = VisDialDataset(args, ['val'])
 dataloader_val = DataLoader(dataset_val,
                             batch_size=args.batch_size,
                             shuffle=False,
+                            drop_last=True,
                             collate_fn=dataset.collate_fn)
 # ----------------------------------------------------------------------------
 # setting model args
@@ -225,6 +227,18 @@ def convert_list_to_tensor(batch):
     return new_batch
 
 
+def repeat_tensors(batch, num_repeat):
+    """In the last iterations, when the number of samples are not multiple of the num_gpu, this function will repeat the last few samples"""
+    new_batch = batch.copy()
+    for i in range(num_repeat):
+        for k, v in batch.items():
+            if isinstance(v, list):
+                new_batch[k].append(v[-1])
+            elif isinstance(v, torch.Tensor):
+                new_batch[k] = torch.cat((new_batch[k], v[-1].unsqueeze(0)), 0)
+    return new_batch
+
+
 log_loss = []
 for epoch in range(1, model_args.num_epochs + 1):
     for i, batch in tqdm(enumerate(dataloader)):
@@ -238,9 +252,11 @@ for epoch in range(1, model_args.num_epochs + 1):
         # --------------------------------------------------------------------
         # forward-backward pass and optimizer step
         # --------------------------------------------------------------------
+        # if not batch["vid_feat"].shape[0] % args.num_gpu == 0:
+        #     num_repeat = args.num_gpu - batch["vid_feat"].shape[0] % args.num_gpu
+        #     batch = repeat_tensors(batch, num_repeat)
         new_batch = convert_list_to_tensor(batch)
         dec_out = model(new_batch)
-
         cur_loss = criterion(dec_out, batch['ans_ind'].view(-1))
         cur_loss.backward()
 
@@ -263,7 +279,7 @@ for epoch in range(1, model_args.num_epochs + 1):
         # print after every few iterations
         # --------------------------------------------------------------------
 
-        if i % 200 == 0:
+        if (i + 1) % 200 == 0:
 
             #print("Running validation")
             validation_losses = []
@@ -275,6 +291,9 @@ for epoch in range(1, model_args.num_epochs + 1):
                         if args.gpuid >= 0:
                             val_batch[key] = val_batch[key].cuda()
 
+                # if not val_batch["vid_feat"].shape[0] % args.num_gpu == 0:
+                #     num_repeat = args.num_gpu - val_batch["vid_feat"].shape[0] % args.num_gpu
+                #     val_batch = repeat_tensors(val_batch, num_repeat)
                 new_batch_v = convert_list_to_tensor(val_batch)
                 dec_out = model(new_batch)
                 cur_loss = criterion(dec_out, val_batch['ans_ind'].view(-1))
