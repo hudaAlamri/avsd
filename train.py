@@ -23,15 +23,8 @@ VisDialDataset.add_cmdline_args(parser)
 LateFusionEncoder.add_cmdline_args(parser)
 
 parser.add_argument_group('Input modalites arguments')
-parser.add_argument('-input_type', default='Q_DH_V', choices=['Q_only', 'Q_DH',
-                                                              'Q_A',
-                                                              'Q_I',
-                                                              'Q_V',
-                                                              'Q_C_I',
-                                                              'Q_DH_V',
-                                                              'Q_DH_I',
-                                                              'Q_V_A',
-                                                              'Q_DH_V_A'], help='Specify the inputs')
+parser.add_argument('-input_type', default='Q_DH_V',
+                    choices=['Q_only', 'Q_DH', 'Q_A', 'Q_I', 'Q_V', 'Q_C_I', 'Q_DH_V', 'Q_DH_I', 'Q_V_A', 'Q_DH_V_A'], help='Specify the inputs')
 
 parser.add_argument_group('Encoder Decoder choice arguments')
 parser.add_argument('-encoder', default='lf-ques-im-hist',
@@ -126,6 +119,7 @@ device = "cpu"
 if args.gpuid >= 0:
     torch.cuda.manual_seed_all(1234)
     args.num_gpu = torch.cuda.device_count()
+    device = "cuda"
 
 # transfer all options to model
 model_args = args
@@ -199,7 +193,6 @@ if args.load_path != '':
 print("Encoder: {}".format(args.encoder))
 print("Decoder: {}".format(args.decoder))
 
-device = "cuda"
 if args.gpuid >= 0:
     model = torch.nn.DataParallel(model, output_device=0, dim=0)
     model = model.to(device)
@@ -220,6 +213,18 @@ train_begin = datetime.datetime.utcnow()
 print("Training start time: {}".format(
     datetime.datetime.strftime(train_begin, '%d-%b-%Y-%H:%M:%S')))
 
+
+def convert_list_to_tensor(batch):
+    new_batch = {}
+    for k, v in batch.items():
+        # tensor of list of strings isn't possible, hence removing the image fnames from the batch sent into the training module.
+        if isinstance(v, list) and not (k == "img_fnames"):
+            new_batch[k] = torch.Tensor(v)
+        elif isinstance(v, torch.Tensor):
+            new_batch[k] = v
+    return new_batch
+
+
 log_loss = []
 for epoch in range(1, model_args.num_epochs + 1):
     for i, batch in tqdm(enumerate(dataloader)):
@@ -233,18 +238,8 @@ for epoch in range(1, model_args.num_epochs + 1):
         # --------------------------------------------------------------------
         # forward-backward pass and optimizer step
         # --------------------------------------------------------------------
-        img = batch['img_feat'] if 'I' in args.input_type else None
-        audio = batch['audio_feat'] if 'A' in args.input_type else None
-        vid = batch['vid_feat'] if 'V' in args.input_type else None
-        hist = batch['hist'] if 'DH' in args.input_type else None
-        hist_len = batch['hist_len'] if 'DH' in args.input_type else None
-        ques = batch['ques']
-        ques_len = batch["ques_len"]
-        opt = batch['opt']
-        opt_len = batch['opt_len']
-
-        dec_out = model(img, audio, vid, hist, hist_len,
-                        ques, ques_len, opt, opt_len)
+        new_batch = convert_list_to_tensor(batch)
+        dec_out = model(new_batch)
 
         cur_loss = criterion(dec_out, batch['ans_ind'].view(-1))
         cur_loss.backward()
@@ -279,17 +274,9 @@ for epoch in range(1, model_args.num_epochs + 1):
                         val_batch[key] = Variable(val_batch[key])
                         if args.gpuid >= 0:
                             val_batch[key] = val_batch[key].cuda()
-                img_v = val_batch['img_feat'] if 'I' in args.input_type else None
-                audio_v = val_batch['audio_feat'] if 'A' in args.input_type else None
-                vid_v = val_batch['vid_feat'] if 'V' in args.input_type else None
-                hist_v = val_batch['hist'] if 'DH' in args.input_type else None
-                hist_len_v = val_batch['hist_len'] if 'DH' in args.input_type else None
-                ques_v = val_batch['ques']
-                ques_len_v = val_batch["ques_len"]
-                opt_v = val_batch['opt']
-                opt_len_v = val_batch['opt_len']
-                dec_out = model(img_v, audio_v, vid_v, hist_v,
-                                hist_len_v, ques_v, ques_len_v, opt_v, opt_len_v)
+
+                new_batch_v = convert_list_to_tensor(val_batch)
+                dec_out = model(new_batch)
                 cur_loss = criterion(dec_out, val_batch['ans_ind'].view(-1))
                 validation_losses.append(cur_loss.item())
 

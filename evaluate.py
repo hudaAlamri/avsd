@@ -14,58 +14,46 @@ from dataloader import VisDialDataset
 from encoders import Encoder, LateFusionEncoder
 from decoders import Decoder
 from utils import process_ranks, scores_to_ranks, get_gt_ranks
+from models import AVSD
 
 
 parser = argparse.ArgumentParser()
 VisDialDataset.add_cmdline_args(parser)
 LateFusionEncoder.add_cmdline_args(parser)
-parser.add_argument('--finetune', default=0, type=int)
-parser.add_argument('--fps', type=int, default=16, help='') 
-parser.add_argument('--input_vid', default="data/charades_s3d_mixed_5c_fps_16_num_frames_40_original_scaled", help=".h5 file path for the charades s3d features.")
-parser.add_argument('-input_type', default='question_dialog_video', choices=['question_only',
-                                                                     'question_dialog',
-                                                                     'question_audio',
-                                                                     'question_image',
-                                                                     'question_video',
-                                                                     'question_caption_image',
-                                                                     'question_dialog_video',
-                                                                     'question_dialog_image',
-                                                                     'question_video_audio',
-                                                                     'question_dialog_video_audio'], help='Specify the inputs')
+
+parser.add_argument('-input_type', default='question_dialog_video',
+                    choices=['question_only', 'question_dialog', 'question_audio', 'question_image', 'question_video', 'question_caption_image', 'question_dialog_video', 'question_dialog_image', 'question_video_audio', 'question_dialog_video_audio'], help='Specify the inputs')
 
 parser.add_argument_group('Evaluation related arguments')
-parser.add_argument('-load_path', default='/nethome/halamri3/cvpr2020/avsd/checkpoints/nofinetune/14-Nov-2020-18:38:13/model_final.pth', help='Checkpoint to load path from')
-parser.add_argument('-split', default='test', choices=['val', 'test', 'train'], help='Split to evaluate on')
-parser.add_argument('-use_gt', action='store_true', help='Whether to use ground truth for retrieving ranks')
+parser.add_argument('-load_path', default='/nethome/halamri3/cvpr2020/avsd/checkpoints/nofinetune/14-Nov-2020-18:38:13/model_final.pth',
+                    help='Checkpoint to load path from')
+parser.add_argument('-split', default='test',
+                    choices=['val', 'test', 'train'], help='Split to evaluate on')
+parser.add_argument('-use_gt', action='store_true',
+                    help='Whether to use ground truth for retrieving ranks')
 parser.add_argument('-batch_size', default=12, type=int, help='Batch size')
 parser.add_argument('-gpuid', default=0, type=int, help='GPU id to use')
-parser.add_argument('-overfit', action='store_true', help='Use a batch of only 5 examples, useful for debugging')
-parser.add_argument('--video_root', default='data/videos/')
+parser.add_argument('-overfit', action='store_true',
+                    help='Use a batch of only 5 examples, useful for debugging')
+parser.add_argument('-video_root', default='data/videos/')
 parser.add_argument_group('Submission related arguments')
-parser.add_argument('-save_ranks', action='store_true', help='Whether to save retrieved ranks')
-parser.add_argument('-save_path', default='logs/ranks.json', help='Path of json file to save ranks')
-parser.add_argument('--random_flip', type=int, default=0, help='random seed')
-parser.add_argument('--crop_only', type=int, default=1,
-                            help='random seed')
-parser.add_argument('--center_crop', type=int, default=0,
-                            help='random seed')
-parser.add_argument('--num_frames', type=int, default=40,
-                            help='random seed')
-parser.add_argument('--video_size', type=int, default=224,
-                            help='random seed')
+parser.add_argument('-save_ranks', action='store_true',
+                    help='Whether to save retrieved ranks')
+parser.add_argument('-save_path', default='logs/ranks.json',
+                    help='Path of json file to save ranks')
+parser.add_argument('-random_flip', type=int, default=0, help='random seed')
+parser.add_argument('-crop_only', type=int, default=1,
+                    help='random seed')
+parser.add_argument('-center_crop', type=int, default=0,
+                    help='random seed')
+parser.add_argument('-num_frames', type=int, default=40,
+                    help='random seed')
+parser.add_argument('-video_size', type=int, default=224,
+                    help='random seed')
 
 
-
-parser.add_argument('-input_type', default='question_dialog_video', choices=['question_only',
-                                                                                   'question_dialog',
-                                                                                   'question_audio',
-                                                                                   'question_image',
-                                                                                   'question_video',
-                                                                                   'question_caption_image',
-                                                                                   'question_dialog_video',
-                                                                                   'question_dialog_image',
-                                                                                   'question_video_audio',
-                                                                                   'question_dialog_video_audio'], help='Specify the inputs')
+parser.add_argument('-input_type', default='question_dialog_video',
+                    choices=['question_only', 'question_dialog', 'question_audio', 'question_image',  'question_video', 'question_caption_image', 'question_dialog_video',  'question_dialog_image', 'question_video_audio', 'question_dialog_video_audio'], help='Specify the inputs')
 
 parser.add_argument_group('Evaluation related arguments')
 parser.add_argument('-load_path', default='checkpoints/s3d_mixed_5c_fps_16_num_frames_40_text_encoder_lstm_lr_0.001_unfreeze_layer_1_finetune_1_use_npy_1/model_final.pth',
@@ -85,27 +73,27 @@ parser.add_argument('-save_ranks', action='store_true',
 parser.add_argument('-save_path', default='logs/qes_dialog_videos_ranks.json',
                     help='Path of json file to save ranks')
 parser.add_argument(
-    '--input_vid', default="data/charades_s3d_mixed_5c_fps_16_num_frames_40_original_scaled", help=".h5 file path for the charades s3d features.")
-parser.add_argument('--finetune', default=0, type=int,
+    '-input_vid', default="data/charades_s3d_mixed_5c_fps_16_num_frames_40_original_scaled", help=".h5 file path for the charades s3d features.")
+parser.add_argument('-finetune', default=0, type=int,
                     help="When set true, the model finetunes the s3dg model for video")
 # S3DG parameters and dataloader
-parser.add_argument('--num_frames', type=int, default=40,
+parser.add_argument('-num_frames', type=int, default=40,
                     help='num_frame')
-parser.add_argument('--video_size', type=int, default=224,
+parser.add_argument('-video_size', type=int, default=224,
                     help='random seed')
-parser.add_argument('--fps', type=int, default=16, help='')
-parser.add_argument('--crop_only', type=int, default=1,
+parser.add_argument('-fps', type=int, default=16, help='')
+parser.add_argument('-crop_only', type=int, default=1,
                     help='random seed')
-parser.add_argument('--center_crop', type=int, default=0,
+parser.add_argument('-center_crop', type=int, default=0,
                     help='random seed')
-parser.add_argument('--random_flip', type=int, default=0,
+parser.add_argument('-random_flip', type=int, default=0,
                     help='random seed')
-parser.add_argument('--video_root', default='data/charades/videos')
-parser.add_argument('--unfreeze_layers', default=0, type=int,
+parser.add_argument('-video_root', default='data/charades/videos')
+parser.add_argument('-unfreeze_layers', default=0, type=int,
                     help="if 1, unfreezes _5 layers, if 2 unfreezes _4 and _5 layers, if 0, unfreezes all layers")
-parser.add_argument("--text_encoder", default="lstm",
+parser.add_argument("-text_encoder", default="lstm",
                     help="lstm or transformer", type=str)
-parser.add_argument("--use_npy", default=0,
+parser.add_argument("-use_npy", default=0,
                     help="Uses npy instead of reading from videos")
 # ----------------------------------------------------------------------------
 # input arguments and options
@@ -115,11 +103,15 @@ args = parser.parse_args()
 
 # seed for reproducibility
 torch.manual_seed(1234)
+torch.backends.cudnn.deterministic = True
+torch.autograd.set_detect_anomaly(True)
 
 # set device and default tensor type
+device = "cpu"
 if args.gpuid >= 0:
     torch.cuda.manual_seed_all(1234)
-    torch.cuda.set_device(args.gpuid)
+    args.num_gpu = torch.cuda.device_count()
+    device = "cuda"
 
 # ----------------------------------------------------------------------------
 # read saved model and args
@@ -155,16 +147,14 @@ print("{} iter per epoch.".format(args.iter_per_epoch))
 # setup the model
 # ----------------------------------------------------------------------------
 
-encoder = Encoder(model_args)
-encoder.load_state_dict(components['encoder'])
 
-decoder = Decoder(model_args, encoder)
-decoder.load_state_dict(components['decoder'])
+model = AVSD(model_args)
+model._load_state_dict_(components)
 print("Loaded model from {}".format(args.load_path))
 
 if args.gpuid >= 0:
-    encoder = encoder.cuda()
-    decoder = decoder.cuda()
+    model = torch.nn.DataParallel(model, output_device=0, dim=0)
+    model = model.to(device)
 
 # ----------------------------------------------------------------------------
 # evaluation
@@ -172,9 +162,18 @@ if args.gpuid >= 0:
 
 print("Evaluation start time: {}".format(
     datetime.datetime.strftime(datetime.datetime.utcnow(), '%d-%b-%Y-%H:%M:%S')))
-encoder.eval()
-decoder.eval()
+model.eval()
 
+
+def convert_list_to_tensor(batch):
+    new_batch = {}
+    for k, v in batch.items():
+        # tensor of list of strings isn't possible, hence removing the image fnames from the batch sent into the training module.
+        if isinstance(v, list) and not (k == "img_fnames"):
+            new_batch[k] = torch.Tensor(v)
+        elif isinstance(v, torch.Tensor):
+            new_batch[k] = v
+    return new_batch
 
 if args.use_gt:
     # ------------------------------------------------------------------------
@@ -188,8 +187,8 @@ if args.use_gt:
                 if args.gpuid >= 0:
                     batch[key] = batch[key].cuda()
 
-        enc_out = encoder(batch)
-        dec_out = decoder(enc_out, batch)
+        new_batch = convert_list_to_tensor(batch)
+        dec_out = model(new_batch)
         ranks = scores_to_ranks(dec_out.data)
         gt_ranks = get_gt_ranks(ranks, batch['ans_ind'].data)
         all_ranks.append(gt_ranks)
@@ -208,8 +207,8 @@ else:
                 if args.gpuid >= 0:
                     batch[key] = batch[key].cuda()
 
-        enc_out = encoder(batch)
-        dec_out = decoder(enc_out, batch)
+        new_batch = convert_list_to_tensor(batch)
+        dec_out = model(new_batch)
         ranks = scores_to_ranks(dec_out.data)
         ranks = ranks.view(-1, 10, 100)
 
