@@ -23,15 +23,8 @@ VisDialDataset.add_cmdline_args(parser)
 LateFusionEncoder.add_cmdline_args(parser)
 
 parser.add_argument_group('Input modalites arguments')
-parser.add_argument('-input_type', default='Q_DH_V', choices=['Q_only', 'Q_DH',
-                                                              'Q_A',
-                                                              'Q_I',
-                                                              'Q_V',
-                                                              'Q_C_I',
-                                                              'Q_DH_V',
-                                                              'Q_DH_I',
-                                                              'Q_V_A',
-                                                              'Q_DH_V_A'], help='Specify the inputs')
+parser.add_argument('-input_type', default='Q_DH_V',
+                    choices=['Q_only', 'Q_DH', 'Q_A', 'Q_I', 'Q_V', 'Q_C_I', 'Q_DH_V', 'Q_DH_I', 'Q_V_A', 'Q_DH_V_A'], help='Specify the inputs')
 
 parser.add_argument_group('Encoder Decoder choice arguments')
 parser.add_argument('-encoder', default='lf-ques-im-hist',
@@ -42,10 +35,10 @@ parser.add_argument('-decoder', default='disc',
                     choices=['disc'], help='Decoder to use for training')
 
 parser.add_argument_group('Optimization related arguments')
-parser.add_argument('-num_epochs', default=45, type=int, help='Epochs')
+parser.add_argument('-num_epochs', default=21, type=int, help='Epochs')
 parser.add_argument('-batch_size', default=12, type=int, help='Batch size')
-parser.add_argument('-lr', default=0.001, type=float, help='Learning rate')
-parser.add_argument('-lr_decay_rate', default=0.9997592083,
+parser.add_argument('-lr', default=1e-4, type=float, help='Learning rate')
+parser.add_argument('-lr_decay_rate', default=0.9,
                     type=float, help='Decay  for lr')
 parser.add_argument('-min_lr', default=5e-5, type=float,
                     help='Minimum learning rate')
@@ -62,12 +55,13 @@ parser.add_argument('-load_path', default='',
                     help='Checkpoint to load path from')
 parser.add_argument('-save_path', default='checkpoints/',
                     help='Path to save checkpoints')
-parser.add_argument('-save_step', default=6, type=int,
+parser.add_argument('-save_step', default=4, type=int,
                     help='Save checkpoint after every save_step epochs')
 parser.add_argument('-input_vid', default="data/charades_s3d_mixed_5c_fps_16_num_frames_40_original_scaled",
                     help=".h5 file path for the charades s3d features.")
-parser.add_argument('-finetune', default=1, type=int,
+parser.add_argument('-finetune', default=0, type=int,
                     help="When set true, the model finetunes the s3dg model for video")
+
 # S3DG parameters and dataloader
 parser.add_argument('-num_frames', type=int, default=40,
                     help='num_frame')
@@ -91,9 +85,9 @@ parser.add_argument("-numpy_path", default="data/charades")
 
 parser.add_argument_group('Visualzing related arguments')
 parser.add_argument('-enableVis', type=int, default=1)
-parser.add_argument('-visEnvName', type=str, default='s3d_finetune')
-parser.add_argument('-server', type=str, default='127.0.0.1')
-parser.add_argument('-serverPort', type=int, default=8855)
+parser.add_argument('-visEnvName', type=str, default='s3d_Nofinetune')
+parser.add_argument('-server', type=str, default='sky1.cc.gatech.edu')
+parser.add_argument('-serverPort', type=int, default=7771)
 # ----------------------------------------------------------------------------
 # input arguments and options
 # ----------------------------------------------------------------------------
@@ -105,8 +99,8 @@ start_time = datetime.datetime.strftime(
 
 if args.save_path == 'checkpoints/':
     # args.save_path += start_time
-    args.save_path += 'input_type_{0}_s3d_mixed_5c_fps_{1}_num_frames_{2}_text_encoder_{3}_lr_{4}_unfreeze_layer_{5}_finetune_{6}_use_npy_{7}'.format(
-        args.input_type, args.fps, args.num_frames, args.text_encoder, args.lr, args.unfreeze_layers, args.finetune, args.use_npy)
+    args.save_path += 'input_type_{0}_s3d_mixed_5c_fps_{1}_num_frames_{2}_text_encoder_{3}_lr_{4}_unfreeze_layer_{5}_finetune_{6}_use_npy_{7}_batch_size_{8}'.format(
+        args.input_type, args.fps, args.num_frames, args.text_encoder, args.lr, args.unfreeze_layers, args.finetune, args.use_npy, args.batch_size)
 
 # -------------------------------------------------------------------------------------
 # setting visdom args
@@ -126,6 +120,7 @@ device = "cpu"
 if args.gpuid >= 0:
     torch.cuda.manual_seed_all(1234)
     args.num_gpu = torch.cuda.device_count()
+    device = "cuda"
 
 # transfer all options to model
 model_args = args
@@ -155,12 +150,16 @@ dataset = VisDialDataset(args, ['train'])
 dataloader = DataLoader(dataset,
                         batch_size=args.batch_size,
                         shuffle=True,
+                        num_workers=3,
+                        drop_last=True,
                         collate_fn=dataset.collate_fn)
 
 dataset_val = VisDialDataset(args, ['val'])
 dataloader_val = DataLoader(dataset_val,
                             batch_size=args.batch_size,
+                            num_workers=3,
                             shuffle=False,
+                            drop_last=True,
                             collate_fn=dataset.collate_fn)
 # ----------------------------------------------------------------------------
 # setting model args
@@ -189,7 +188,7 @@ if args.finetune:
     print("Total number of s3dg params {0}".format(total_params))
 optimizer = optim.Adam(list(model.parameters()),
                        lr=args.lr, weight_decay=args.weight_decay)
-criterion = nn.CrossEntropyLoss()
+
 scheduler = lr_scheduler.StepLR(
     optimizer, step_size=1, gamma=args.lr_decay_rate)
 
@@ -199,11 +198,9 @@ if args.load_path != '':
 print("Encoder: {}".format(args.encoder))
 print("Decoder: {}".format(args.decoder))
 
-device = "cuda"
 if args.gpuid >= 0:
     model = torch.nn.DataParallel(model, output_device=0, dim=0)
     model = model.to(device)
-    criterion = criterion.to(device)
 
 # ----------------------------------------------------------------------------
 # training
@@ -220,6 +217,30 @@ train_begin = datetime.datetime.utcnow()
 print("Training start time: {}".format(
     datetime.datetime.strftime(train_begin, '%d-%b-%Y-%H:%M:%S')))
 
+
+def convert_list_to_tensor(batch):
+    new_batch = {}
+    for k, v in batch.items():
+        # tensor of list of strings isn't possible, hence removing the image fnames from the batch sent into the training module.
+        if isinstance(v, list) and not (k == "img_fnames"):
+            new_batch[k] = torch.Tensor(v)
+        elif isinstance(v, torch.Tensor):
+            new_batch[k] = v
+    return new_batch
+
+
+def repeat_tensors(batch, num_repeat):
+    """In the last iterations, when the number of samples are not multiple of the num_gpu, this function will repeat the last few samples"""
+    new_batch = batch.copy()
+    for i in range(num_repeat):
+        for k, v in batch.items():
+            if isinstance(v, list):
+                new_batch[k].append(v[-1])
+            elif isinstance(v, torch.Tensor):
+                new_batch[k] = torch.cat((new_batch[k], v[-1].unsqueeze(0)), 0)
+    return new_batch
+
+
 log_loss = []
 for epoch in range(1, model_args.num_epochs + 1):
     for i, batch in tqdm(enumerate(dataloader)):
@@ -233,20 +254,11 @@ for epoch in range(1, model_args.num_epochs + 1):
         # --------------------------------------------------------------------
         # forward-backward pass and optimizer step
         # --------------------------------------------------------------------
-        img = batch['img_feat'] if 'I' in args.input_type else None
-        audio = batch['audio_feat'] if 'A' in args.input_type else None
-        vid = batch['vid_feat'] if 'V' in args.input_type else None
-        hist = batch['hist'] if 'DH' in args.input_type else None
-        hist_len = batch['hist_len'] if 'DH' in args.input_type else None
-        ques = batch['ques']
-        ques_len = batch["ques_len"]
-        opt = batch['opt']
-        opt_len = batch['opt_len']
-
-        dec_out = model(img, audio, vid, hist, hist_len,
-                        ques, ques_len, opt, opt_len)
-
-        cur_loss = criterion(dec_out, batch['ans_ind'].view(-1))
+        # if not batch["vid_feat"].shape[0] % args.num_gpu == 0:
+        #     num_repeat = args.num_gpu - batch["vid_feat"].shape[0] % args.num_gpu
+        #     batch = repeat_tensors(batch, num_repeat)
+        new_batch = convert_list_to_tensor(batch)
+        cur_loss = model(new_batch).mean()
         cur_loss.backward()
 
         optimizer.step()
@@ -256,6 +268,8 @@ for epoch in range(1, model_args.num_epochs + 1):
         # update running loss and decay learning rates
         # --------------------------------------------------------------------
         train_loss = cur_loss.item()
+        #import pdb
+        #pdb.set_trace()
         if running_loss > 0.0:
             running_loss = 0.95 * running_loss + 0.05 * cur_loss.item()
         else:
@@ -267,8 +281,7 @@ for epoch in range(1, model_args.num_epochs + 1):
         # --------------------------------------------------------------------
         # print after every few iterations
         # --------------------------------------------------------------------
-
-        if i % 200 == 0:
+        if (i + 1) % 200 == 0:
 
             #print("Running validation")
             validation_losses = []
@@ -279,18 +292,12 @@ for epoch in range(1, model_args.num_epochs + 1):
                         val_batch[key] = Variable(val_batch[key])
                         if args.gpuid >= 0:
                             val_batch[key] = val_batch[key].cuda()
-                img_v = val_batch['img_feat'] if 'I' in args.input_type else None
-                audio_v = val_batch['audio_feat'] if 'A' in args.input_type else None
-                vid_v = val_batch['vid_feat'] if 'V' in args.input_type else None
-                hist_v = val_batch['hist'] if 'DH' in args.input_type else None
-                hist_len_v = val_batch['hist_len'] if 'DH' in args.input_type else None
-                ques_v = val_batch['ques']
-                ques_len_v = val_batch["ques_len"]
-                opt_v = val_batch['opt']
-                opt_len_v = val_batch['opt_len']
-                dec_out = model(img_v, audio_v, vid_v, hist_v,
-                                hist_len_v, ques_v, ques_len_v, opt_v, opt_len_v)
-                cur_loss = criterion(dec_out, val_batch['ans_ind'].view(-1))
+
+                # if not val_batch["vid_feat"].shape[0] % args.num_gpu == 0:
+                #     num_repeat = args.num_gpu - val_batch["vid_feat"].shape[0] % args.num_gpu
+                #     val_batch = repeat_tensors(val_batch, num_repeat)
+                new_batch_v = convert_list_to_tensor(val_batch)
+                cur_loss = model(new_batch_v).mean()
                 validation_losses.append(cur_loss.item())
 
             validation_loss = np.mean(validation_losses)
@@ -316,10 +323,10 @@ for epoch in range(1, model_args.num_epochs + 1):
     # ------------------------------------------------------------------------
     if epoch % args.save_step == 0:
         torch.save({
-            'encoder': model.encoder.state_dict(),
-            'decoder': model.decoder.state_dict(),
+            'encoder': model.module.encoder.state_dict(),
+            'decoder': model.module.decoder.state_dict(),
             'optimizer': optimizer.state_dict(),
-            'model_args': model.args
+            'model_args': model.module.args
         }, os.path.join(args.save_path, 'model_epoch_{}.pth'.format(epoch)))
 
 torch.save({

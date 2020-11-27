@@ -10,7 +10,8 @@ class DiscriminativeDecoder(nn.Module):
         self.args = args
         # share word embedding
         self.word_embed = encoder.word_embed
-        self.option_rnn = nn.LSTM(args.embed_size, args.rnn_hidden_size, batch_first=True)
+        self.option_rnn = nn.LSTM(
+            args.embed_size, args.rnn_hidden_size, batch_first=True)
         self.log_softmax = nn.LogSoftmax(dim=1)
 
         # options are variable length padded sequences, use DynamicRNN
@@ -30,8 +31,10 @@ class DiscriminativeDecoder(nn.Module):
         options = batch['opt']
         options_len = batch['opt_len']
         # word embed options
-        options = options.view(options.size(0) * options.size(1), options.size(2), -1)
-        options_len = options_len.view(options_len.size(0) * options_len.size(1), -1)
+        options = options.view(options.size(
+            0) * options.size(1), options.size(2), -1)
+        options_len = options_len.view(
+            options_len.size(0) * options_len.size(1), -1)
         batch_size, num_options, max_opt_len = options.size()
         options = options.contiguous().view(-1, num_options * max_opt_len)
         options = self.word_embed(options)
@@ -48,4 +51,4 @@ class DiscriminativeDecoder(nn.Module):
         scores = torch.stack(scores, 1)
         return scores
         #log_probs = self.log_softmax(scores)
-        #return log_probs
+        # return log_probs
