@@ -35,8 +35,13 @@ parser.add_argument('-decoder', default='disc',
                     choices=['disc'], help='Decoder to use for training')
 
 parser.add_argument_group('Optimization related arguments')
+<<<<<<< HEAD
 parser.add_argument('-num_epochs', default=21, type=int, help='Epochs')
 parser.add_argument('-batch_size', default=12, type=int, help='Batch size')
+=======
+parser.add_argument('-num_epochs', default=45, type=int, help='Epochs')
+parser.add_argument('-batch_size', default=72, type=int, help='Batch size')
+>>>>>>> 57fc90a6cccc03fefce2f2c7185d372978657bf8
 parser.add_argument('-lr', default=1e-4, type=float, help='Learning rate')
 parser.add_argument('-lr_decay_rate', default=0.9,
                     type=float, help='Decay  for lr')
@@ -85,7 +90,11 @@ parser.add_argument("-numpy_path", default="data/charades")
 
 parser.add_argument_group('Visualzing related arguments')
 parser.add_argument('-enableVis', type=int, default=1)
+<<<<<<< HEAD
 parser.add_argument('-visEnvName', type=str, default='s3d_Nofinetune')
+=======
+parser.add_argument('-visEnvName', type=str, default='s3d_finetune')
+>>>>>>> 57fc90a6cccc03fefce2f2c7185d372978657bf8
 parser.add_argument('-server', type=str, default='sky1.cc.gatech.edu')
 parser.add_argument('-serverPort', type=int, default=7771)
 # ----------------------------------------------------------------------------
@@ -150,14 +159,22 @@ dataset = VisDialDataset(args, ['train'])
 dataloader = DataLoader(dataset,
                         batch_size=args.batch_size,
                         shuffle=True,
+<<<<<<< HEAD
                         num_workers=3,
+=======
+                        num_workers=8,
+>>>>>>> 57fc90a6cccc03fefce2f2c7185d372978657bf8
                         drop_last=True,
                         collate_fn=dataset.collate_fn)
 
 dataset_val = VisDialDataset(args, ['val'])
 dataloader_val = DataLoader(dataset_val,
                             batch_size=args.batch_size,
+<<<<<<< HEAD
                             num_workers=3,
+=======
+                            num_workers=8,
+>>>>>>> 57fc90a6cccc03fefce2f2c7185d372978657bf8
                             shuffle=False,
                             drop_last=True,
                             collate_fn=dataset.collate_fn)
@@ -281,6 +298,10 @@ for epoch in range(1, model_args.num_epochs + 1):
         # --------------------------------------------------------------------
         # print after every few iterations
         # --------------------------------------------------------------------
+<<<<<<< HEAD
+=======
+
+>>>>>>> 57fc90a6cccc03fefce2f2c7185d372978657bf8
         if (i + 1) % 200 == 0:
 
             #print("Running validation")
