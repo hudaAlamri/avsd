@@ -1,7 +1,6 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
-
 from utils import DynamicRNN
 
 from encoders.s3dg_video import S3D
@@ -39,6 +38,8 @@ class LateFusionEncoder(nn.Module):
         if self.args.finetune:
             self.video_embed = S3D(
                 dict_path='data/s3d_dict.npy', space_to_depth=True)
+            self.video_embed.load_state_dict(
+                torch.load('data/s3d_howto100m.pth'), strict=False)
             self.video_embed.train()
             if self.args.unfreeze_layers:
                 self.__freeze_s3dg_layers()
@@ -77,10 +78,10 @@ class LateFusionEncoder(nn.Module):
         self.fusion = nn.Linear(fusion_size, args.rnn_hidden_size)
 
         if args.weight_init == 'xavier':
-            nn.init.xavier_uniform(self.fusion.weight.data)
+            nn.init.xavier_uniform_(self.fusion.weight.data)
         elif args.weight_init == 'kaiming':
-            nn.init.kaiming_uniform(self.fusion.weight.data)
-        nn.init.constant(self.fusion.bias.data, 0)
+            nn.init.kaiming_uniform_(self.fusion.weight.data)
+        nn.init.constant_(self.fusion.bias.data, 0)
 
     def __freeze_s3dg_layers(self):
         # Only train _4 and _5 layers

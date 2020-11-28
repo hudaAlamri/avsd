@@ -17,12 +17,13 @@ The S3D architecture was slightly modified with a space to depth trick for TPU
 optimization.
 """
 
-import torch as th
-import torch.nn.functional as F
-import torch.nn as nn
 import os
-import numpy as np
 import re
+
+import numpy as np
+import torch as th
+import torch.nn as nn
+import torch.nn.functional as F
 
 
 class InceptionBlock(nn.Module):
@@ -146,8 +147,12 @@ class STConv3D(nn.Module):
 
     def forward(self, input):
         out = self.relu(self.bn1(self.conv1(input)))
+        if th.isnan(self.conv1(input)).any():
+            print("conv1 is the issue")
         if self.separable:
             out = self.relu(self.bn2(self.conv2(out)))
+        if th.isnan(out).any():
+            print("isnan")
         return out
 
 
@@ -260,7 +265,7 @@ class S3D(nn.Module):
         input = input.contiguous().view(B, 8 * C, T // 2, H // 2, W // 2)
         return input
 
-    def forward(self, inputs):
+    def forward(self, inputs1):
         """Defines the S3DG base architecture.
       """
         if self.space_to_depth:

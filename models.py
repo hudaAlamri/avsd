@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from encoders import Encoder, LateFusionEncoder
 from decoders import Decoder
+from encoders import Encoder, LateFusionEncoder
 
 
 class AVSD(nn.Module):
@@ -21,7 +21,6 @@ class AVSD(nn.Module):
     def forward(self, batch):
         enc_out = self.encoder(batch)
         dec_out = self.decoder(enc_out, batch)
-
         cur_loss = self.criterion(dec_out, batch['ans_ind'].view(-1))
 
         return cur_loss

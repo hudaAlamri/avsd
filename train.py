@@ -3,20 +3,21 @@ import datetime
 import gc
 import math
 import os
-import numpy as np
-from tqdm import tqdm
+import random
 
+import numpy as np
 import torch
 from torch import nn, optim
 from torch.autograd import Variable
 from torch.optim import lr_scheduler
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from dataloader import VisDialDataset
-from encoders import Encoder, LateFusionEncoder
 from decoders import Decoder
-from utils import visualize
+from encoders import Encoder, LateFusionEncoder
 from models import AVSD
+from utils import visualize
 
 parser = argparse.ArgumentParser()
 VisDialDataset.add_cmdline_args(parser)
@@ -35,13 +36,8 @@ parser.add_argument('-decoder', default='disc',
                     choices=['disc'], help='Decoder to use for training')
 
 parser.add_argument_group('Optimization related arguments')
-<<<<<<< HEAD
-parser.add_argument('-num_epochs', default=21, type=int, help='Epochs')
-parser.add_argument('-batch_size', default=12, type=int, help='Batch size')
-=======
 parser.add_argument('-num_epochs', default=45, type=int, help='Epochs')
-parser.add_argument('-batch_size', default=72, type=int, help='Batch size')
->>>>>>> 57fc90a6cccc03fefce2f2c7185d372978657bf8
+parser.add_argument('-batch_size', default=12, type=int, help='Batch size')
 parser.add_argument('-lr', default=1e-4, type=float, help='Learning rate')
 parser.add_argument('-lr_decay_rate', default=0.9,
                     type=float, help='Decay  for lr')
@@ -62,6 +58,8 @@ parser.add_argument('-save_path', default='checkpoints/',
                     help='Path to save checkpoints')
 parser.add_argument('-save_step', default=4, type=int,
                     help='Save checkpoint after every save_step epochs')
+parser.add_argument('-eval_step', default=100, type=int,
+                    help='Run validation after every eval_step iterations')
 parser.add_argument('-input_vid', default="data/charades_s3d_mixed_5c_fps_16_num_frames_40_original_scaled",
                     help=".h5 file path for the charades s3d features.")
 parser.add_argument('-finetune', default=0, type=int,
@@ -84,19 +82,18 @@ parser.add_argument('-unfreeze_layers', default=1, type=int,
                     help="if 1, unfreezes _5 layers, if 2 unfreezes _4 and _5 layers, if 0, unfreezes all layers")
 parser.add_argument("-text_encoder", default="lstm",
                     help="lstm or transformer", type=str)
-parser.add_argument("-use_npy", default=1,
+parser.add_argument("-use_npy", default=1, type=int,
                     help="Uses npy instead of reading from videos")
 parser.add_argument("-numpy_path", default="data/charades")
 
 parser.add_argument_group('Visualzing related arguments')
 parser.add_argument('-enableVis', type=int, default=1)
-<<<<<<< HEAD
 parser.add_argument('-visEnvName', type=str, default='s3d_Nofinetune')
-=======
-parser.add_argument('-visEnvName', type=str, default='s3d_finetune')
->>>>>>> 57fc90a6cccc03fefce2f2c7185d372978657bf8
-parser.add_argument('-server', type=str, default='sky1.cc.gatech.edu')
-parser.add_argument('-serverPort', type=int, default=7771)
+parser.add_argument('-server', type=str, default='127.0.0.1')
+parser.add_argument('-serverPort', type=int, default=8855)
+parser.add_argument('-set_cuda_device', type=str, default='')
+parser.add_argument("-seed", type=int, default=1,
+                    help="random seed for initialization")
 # ----------------------------------------------------------------------------
 # input arguments and options
 # ----------------------------------------------------------------------------
@@ -120,9 +117,14 @@ viz = visualize.VisdomLinePlot(
     port=args.serverPort)
 
 # seed for reproducibility
+random.seed(args.seed)
+np.random.seed(args.seed)
 torch.manual_seed(1234)
 torch.backends.cudnn.deterministic = True
 torch.autograd.set_detect_anomaly(True)
+
+if args.set_cuda_device is not '':
+    os.environ["CUDA_VISIBLE_DEVICES"] = args.set_cuda_device
 
 # set device and default tensor type
 device = "cpu"
@@ -159,22 +161,14 @@ dataset = VisDialDataset(args, ['train'])
 dataloader = DataLoader(dataset,
                         batch_size=args.batch_size,
                         shuffle=True,
-<<<<<<< HEAD
-                        num_workers=3,
-=======
                         num_workers=8,
->>>>>>> 57fc90a6cccc03fefce2f2c7185d372978657bf8
                         drop_last=True,
                         collate_fn=dataset.collate_fn)
 
 dataset_val = VisDialDataset(args, ['val'])
 dataloader_val = DataLoader(dataset_val,
                             batch_size=args.batch_size,
-<<<<<<< HEAD
-                            num_workers=3,
-=======
                             num_workers=8,
->>>>>>> 57fc90a6cccc03fefce2f2c7185d372978657bf8
                             shuffle=False,
                             drop_last=True,
                             collate_fn=dataset.collate_fn)
@@ -286,7 +280,8 @@ for epoch in range(1, model_args.num_epochs + 1):
         # --------------------------------------------------------------------
         train_loss = cur_loss.item()
         #import pdb
-        #pdb.set_trace()
+        # pdb.set_trace()
+
         if running_loss > 0.0:
             running_loss = 0.95 * running_loss + 0.05 * cur_loss.item()
         else:
@@ -298,16 +293,12 @@ for epoch in range(1, model_args.num_epochs + 1):
         # --------------------------------------------------------------------
         # print after every few iterations
         # --------------------------------------------------------------------
-<<<<<<< HEAD
-=======
 
->>>>>>> 57fc90a6cccc03fefce2f2c7185d372978657bf8
-        if (i + 1) % 200 == 0:
-
-            #print("Running validation")
+        if (i + 1) % args.eval_step == 0:
+            print("Running validation")
             validation_losses = []
 
-            for _, val_batch in tqdm(enumerate(dataloader_val)):
+            for v_i, val_batch in tqdm(enumerate(dataloader_val)):
                 for key in val_batch:
                     if not isinstance(val_batch[key], list):
                         val_batch[key] = Variable(val_batch[key])
@@ -317,6 +308,7 @@ for epoch in range(1, model_args.num_epochs + 1):
                 # if not val_batch["vid_feat"].shape[0] % args.num_gpu == 0:
                 #     num_repeat = args.num_gpu - val_batch["vid_feat"].shape[0] % args.num_gpu
                 #     val_batch = repeat_tensors(val_batch, num_repeat)
+                # print(val_batch["img_fnames"])
                 new_batch_v = convert_list_to_tensor(val_batch)
                 cur_loss = model(new_batch_v).mean()
                 validation_losses.append(cur_loss.item())
@@ -351,8 +343,8 @@ for epoch in range(1, model_args.num_epochs + 1):
         }, os.path.join(args.save_path, 'model_epoch_{}.pth'.format(epoch)))
 
 torch.save({
-    'encoder': model.encoder.state_dict(),
-    'decoder': model.decoder.state_dict(),
+    'encoder': model.module.encoder.state_dict(),
+    'decoder': model.module.decoder.state_dict(),
     'optimizer': optimizer.state_dict(),
     'model_args': model.args
 }, os.path.join(args.save_path, 'model_final.pth'))

@@ -1,20 +1,42 @@
-import os
 import json
-from six import iteritems
+import os
+import pdb
+import random
 from random import shuffle
 
+import ffmpeg
 import h5py
 import hdfdict
 import numpy as np
-from tqdm import tqdm
-import ffmpeg
-import random
-import pdb
-
 import torch
 import torch as th
 import torch.nn.functional as F
+from six import iteritems
 from torch.utils.data import Dataset
+from torchvision import io, transforms
+from tqdm import tqdm
+
+
+class Transform(object):
+
+    def __init__(self):
+        self.mean = torch.tensor([0.485, 0.456, 0.406], dtype=torch.float32)
+        self.std = torch.tensor([0.229, 0.224, 0.225], dtype=torch.float32)
+
+    def __call__(self, add_jitter=False, crop_size=224):
+        transform = transforms.Compose([
+            self.random_crop(crop_size)
+        ])
+        return transform
+
+    def to_tensor(self):
+        return transforms.ToTensor()
+
+    def random_crop(self, size):
+        return transforms.RandomCrop(size, pad_if_needed=True)
+
+    def colorJitter(self):
+        return transforms.ColorJitter(0.4, 0.2, 0.2, 0.1)
 
 
 class VisDialDataset(Dataset):
@@ -43,6 +65,7 @@ class VisDialDataset(Dataset):
         super(VisDialDataset, self).__init__()
         self.args = args
         self.subsets = tuple(subsets)
+        self.transform = Transform()
 
         print("Dataloader loading json file: {}".format(args.input_json))
         with open(args.input_json, 'r') as info_file:
@@ -205,6 +228,20 @@ class VisDialDataset(Dataset):
     def __len__(self):
         return self.num_data_points[self._split]
 
+    def _get_video_torch(self, video_path):
+        vframes, _, vmeta = io.read_video(video_path)
+        vframes = vframes.permute(0, 3, 1, 2)
+        vframes = self.transform(self.args.video_size)(vframes)
+        if vframes.shape[0] < self.args.num_frames:
+            zeros = th.zeros(
+                (3, self.args.num_frames - video.shape[0], self.args.video_size, self.args.video_size), dtype=th.uint8)
+            vframes = th.cat((vframes, zeros), axis=0)
+        # Gets n_frames from tne entire video, linearly spaced
+        vid_indices = np.linspace(
+            0, vframes.shape[0] - 1, self.args.num_frames, dtype=int)
+        vid = vframes[vid_indices, :].permute(1, 0, 2, 3)
+        return vid
+
     def _get_video(self, video_path, start=0, end=0):
         '''
         :param video_path: Path of the video file
@@ -290,7 +327,7 @@ class VisDialDataset(Dataset):
                 else:
                     video_path = os.path.join(
                         self.args.video_root, f_dtype, vid_id)
-                    item['vid_feat'] = self._get_video(video_path)
+                    item['vid_feat'] = self._get_video_torch(video_path)
             else:
                 item['vid_feat'] = torch.from_numpy(
                     self.data[dtype + '_vid_fv'][vid_id]).reshape(-1)
