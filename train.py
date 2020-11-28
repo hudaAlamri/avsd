@@ -85,6 +85,7 @@ parser.add_argument("-text_encoder", default="lstm",
 parser.add_argument("-use_npy", default=1, type=int,
                     help="Uses npy instead of reading from videos")
 parser.add_argument("-numpy_path", default="data/charades")
+parser.add_argument("-num_workers", default=8, type=int)
 
 parser.add_argument_group('Visualzing related arguments')
 parser.add_argument('-enableVis', type=int, default=1)
@@ -161,14 +162,14 @@ dataset = VisDialDataset(args, ['train'])
 dataloader = DataLoader(dataset,
                         batch_size=args.batch_size,
                         shuffle=True,
-                        num_workers=8,
+                        num_workers=args.num_workers,
                         drop_last=True,
                         collate_fn=dataset.collate_fn)
 
 dataset_val = VisDialDataset(args, ['val'])
 dataloader_val = DataLoader(dataset_val,
                             batch_size=args.batch_size,
-                            num_workers=8,
+                            num_workers=args.num_workers,
                             shuffle=False,
                             drop_last=True,
                             collate_fn=dataset.collate_fn)

@@ -30,7 +30,8 @@ MANIFEST
 # Datasets, pretrained models, checkpoints and preprocessed files
 data/
 !visdialch/data/
-checkpoints/
+checkpoints
+checkpoints/*
 logs/
 results/
 log/
