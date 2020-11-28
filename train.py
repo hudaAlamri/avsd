@@ -43,8 +43,8 @@ parser.add_argument('-decoder', default='disc',
 parser.add_argument_group('Optimization related arguments')
 parser.add_argument('-num_epochs', default=45, type=int, help='Epochs')
 parser.add_argument('-batch_size', default=12, type=int, help='Batch size')
-parser.add_argument('-lr', default=0.001, type=float, help='Learning rate')
-parser.add_argument('-lr_decay_rate', default=0.9997592083,
+parser.add_argument('-lr', default=1e-4, type=float, help='Learning rate')
+parser.add_argument('-lr_decay_rate', default=0.99,
                     type=float, help='Decay  for lr')
 parser.add_argument('-min_lr', default=5e-5, type=float,
                     help='Minimum learning rate')
@@ -61,7 +61,7 @@ parser.add_argument('-load_path', default='',
                     help='Checkpoint to load path from')
 parser.add_argument('-save_path', default='checkpoints/',
                     help='Path to save checkpoints')
-parser.add_argument('-save_step', default=6, type=int,
+parser.add_argument('-save_step', default=2, type=int,
                     help='Save checkpoint after every save_step epochs')
 parser.add_argument('--input_vid', default="data/charades_s3d_mixed_5c_fps_16_num_frames_40_original_scaled", help=".h5 file path for the charades s3d features.")
 parser.add_argument('-finetune', default=1, type=int, 
@@ -85,13 +85,13 @@ parser.add_argument("--text_encoder", default="lstm",
                     help="lstm or transformer", type=str)
 parser.add_argument("--use_npy", default=1,
                     help="Uses npy instead of reading from videos")
-parser.add_argument("--numpy_path", default="data/charades")
+parser.add_argument("--numpy_path", default="data/charades/num_frames_40")
 
 parser.add_argument_group('Visualzing related arguments')
 parser.add_argument('-enableVis', type=int, default=1)
 parser.add_argument('-visEnvName', type=str, default='s3d_finetune')
 parser.add_argument('-server', type=str, default='127.0.0.1')
-parser.add_argument('-serverPort', type=int, default=8855)
+parser.add_argument('-serverPort', type=int, default=7771)
 # ----------------------------------------------------------------------------
 # input arguments and options
 # ----------------------------------------------------------------------------
@@ -218,7 +218,7 @@ print("Training start time: {}".format(
 
 log_loss = []
 for epoch in range(1, model_args.num_epochs + 1):
-    for i, batch in tqdm(enumerate(dataloader)):
+    for i, batch in enumerate(dataloader):
         optimizer.zero_grad()
         for key in batch:
             if not isinstance(batch[key], list):
@@ -252,14 +252,13 @@ for epoch in range(1, model_args.num_epochs + 1):
 
         # --------------------------------------------------------------------
         # print after every few iterations
-        # --------------------------------------------------------------------
-    
+        # -------------------------------------------------------------------
         if i % 200 == 0:
 
             #print("Running validation")
             validation_losses = []
 
-            for _, val_batch in tqdm(enumerate(dataloader_val)):
+            for _, val_batch in enumerate(dataloader_val):
                 for key in val_batch:
                     if not isinstance(val_batch[key], list):
                         val_batch[key] = Variable(val_batch[key])
