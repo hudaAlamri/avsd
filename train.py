@@ -323,7 +323,7 @@ for epoch in range(1, model_args.num_epochs + 1):
             all_ranks.append(gt_ranks)
   
         all_ranks = torch.cat(all_ranks, 0)
-        process_ranks(all_ranks, args.sav)
+        process_ranks(all_ranks, args.save_path, epoch)
 
         f.close()
         gc.collect()
