@@ -77,10 +77,12 @@ logging.basicConfig(filename='eval_results.log')
 '''
 # seed for reproducibility
 torch.manual_seed(1234)
-
-
-checkpoints = [file for file in os.listdir(args.load_path) if file.endswith(".pth")]
+cur = os.getcwd()
+os.chdir(args.load_path)
+checkpoints = sorted(filter(os.path.isfile, os.listdir('.')), key=os.path.getmtime)
+checkpoints = [file for file in checkpoints if file.endswith(".pth")]
 logging.info("Evaluate the following checkpoints: %s", args.load_path)
+os.chdir(cur)
 
 # set device and default tensor type
 if args.gpuid >= 0:

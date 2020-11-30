@@ -31,13 +31,13 @@ def process_ranks(ranks, save_path, epoch):
     
     with open(os.path.join(save_path, "ranks_resutls.txt"), "a+") as f:
         f.write("Epoch: {}".format(epoch))
-        f.write("\tNo. questions: {}".format(num_ques))
-        f.write("\tr@1: {}".format(num_r1 / num_ques))
-        f.write("\tr@5: {}".format(num_r5 / num_ques))
-        f.write("\tr@10: {}".format(num_r10 / num_ques))
-        f.write("\tr@10: {}".format(num_r10 / num_ques))
-        f.write("\tmeanR: {}".format(torch.mean(ranks)))
-        f.write("\tmeanRR: {}".format(torch.mean(ranks.reciprocal())))
+        f.write("\tNo. questions: {}\n".format(num_ques))
+        f.write("\tr@1: {}\n".format(num_r1 / num_ques))
+        f.write("\tr@5: {}\n".format(num_r5 / num_ques))
+        f.write("\tr@10: {}\n".format(num_r10 / num_ques))
+        f.write("\tr@10: {}\n".format(num_r10 / num_ques))
+        f.write("\tmeanR: {}\n".format(torch.mean(ranks)))
+        f.write("\tmeanRR: {}\n".format(torch.mean(ranks.reciprocal())))
         f.write('\n')
     f.close()
     
