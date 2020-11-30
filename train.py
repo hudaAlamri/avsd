@@ -62,7 +62,7 @@ parser.add_argument('-load_path', default='',
                     help='Checkpoint to load path from')
 parser.add_argument('-save_path', default='checkpoints/',
                     help='Path to save checkpoints')
-parser.add_argument('-save_step', default=2, type=int,
+parser.add_argument('-save_step', default=1, type=int,
                     help='Save checkpoint after every save_step epochs')
 parser.add_argument('--input_vid', default="data/charades_s3d_mixed_5c_fps_16_num_frames_40_original_scaled", help=".h5 file path for the charades s3d features.")
 parser.add_argument('-finetune', default=1, type=int, 
@@ -321,8 +321,11 @@ for epoch in range(1, model_args.num_epochs + 1):
             ranks = scores_to_ranks(dec_out.data)
             gt_ranks = get_gt_ranks(ranks, batch['ans_ind'].data)
             all_ranks.append(gt_ranks)
+  
         all_ranks = torch.cat(all_ranks, 0)
-        process_ranks(all_ranks)
+        process_ranks(all_ranks, args.sav)
+
+        f.close()
         gc.collect()
         encoder.train()
         decoder.train()
