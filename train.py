@@ -5,7 +5,7 @@ import math
 import os
 import numpy as np
 from tqdm import tqdm
-
+import gc
 import torch
 from torch import nn, optim
 from torch.autograd import Variable
@@ -16,6 +16,7 @@ from dataloader import VisDialDataset
 from encoders import Encoder, LateFusionEncoder
 from decoders import Decoder
 from utils import visualize
+from utils import process_ranks, scores_to_ranks, get_gt_ranks
 
 parser = argparse.ArgumentParser()
 VisDialDataset.add_cmdline_args(parser)
@@ -85,7 +86,7 @@ parser.add_argument("--text_encoder", default="lstm",
                     help="lstm or transformer", type=str)
 parser.add_argument("--use_npy", default=1,
                     help="Uses npy instead of reading from videos")
-parser.add_argument("--numpy_path", default="data/charades/num_frames_40")
+parser.add_argument("--numpy_path", default="data/charades/")
 
 parser.add_argument_group('Visualzing related arguments')
 parser.add_argument('-enableVis', type=int, default=1)
@@ -154,6 +155,12 @@ dataloader = DataLoader(dataset,
 
 dataset_val = VisDialDataset(args, ['val'])
 dataloader_val = DataLoader(dataset_val,
+                            batch_size=args.batch_size,
+                            shuffle=False,
+                            collate_fn=dataset.collate_fn)
+
+dataset_test =  VisDialDataset(args, ['test'])
+dataloader_test = DataLoader(dataset_test,
                             batch_size=args.batch_size,
                             shuffle=False,
                             collate_fn=dataset.collate_fn)
@@ -298,6 +305,27 @@ for epoch in range(1, model_args.num_epochs + 1):
             'optimizer': optimizer.state_dict(),
             'model_args': encoder.args
         }, os.path.join(args.save_path, 'model_epoch_{}.pth'.format(epoch)))
+        print('Running evaluation for checkpoint:',epoch)
+        encoder.eval()
+        decoder.eval()
+        all_ranks = []
+        for i, batch in enumerate(tqdm(dataloader)):
+            for key in batch:
+                if not isinstance(batch[key], list):
+                    batch[key] = Variable(batch[key], volatile=True)
+                    if args.gpuid >= 0:
+                        batch[key] = batch[key].cuda()
+    
+            enc_out = encoder(batch)
+            dec_out = decoder(enc_out, batch)
+            ranks = scores_to_ranks(dec_out.data)
+            gt_ranks = get_gt_ranks(ranks, batch['ans_ind'].data)
+            all_ranks.append(gt_ranks)
+        all_ranks = torch.cat(all_ranks, 0)
+        process_ranks(all_ranks)
+        gc.collect()
+        encoder.train()
+        decoder.train()
 
 torch.save({
     'encoder': encoder.state_dict(),
@@ -307,3 +335,5 @@ torch.save({
 }, os.path.join(args.save_path, 'model_final.pth'))
 
 np.save(os.path.join(args.save_path, 'log_loss'), log_loss)
+
+
