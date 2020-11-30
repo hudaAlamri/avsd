@@ -29,7 +29,8 @@ def process_ranks(ranks, save_path, epoch):
     num_r5 = float(torch.sum(torch.le(ranks, 5)))
     num_r10 = float(torch.sum(torch.le(ranks, 10)))
     
-    with open(os.path.join(save_path, "ranks_{0}.txt".format(epoch)), "w") as f:
+    with open(os.path.join(save_path, "ranks_resutls.txt"), "a+") as f:
+        f.write("Epoch: {}".format(epoch))
         f.write("\tNo. questions: {}".format(num_ques))
         f.write("\tr@1: {}".format(num_r1 / num_ques))
         f.write("\tr@5: {}".format(num_r5 / num_ques))
@@ -37,8 +38,10 @@ def process_ranks(ranks, save_path, epoch):
         f.write("\tr@10: {}".format(num_r10 / num_ques))
         f.write("\tmeanR: {}".format(torch.mean(ranks)))
         f.write("\tmeanRR: {}".format(torch.mean(ranks.reciprocal())))
+        f.write('\n')
     f.close()
-   
+    
+    
     print("\tNo. questions: {}".format(num_ques))
     print("\tr@1: {}".format(num_r1 / num_ques))
     print("\tr@5: {}".format(num_r5 / num_ques))
