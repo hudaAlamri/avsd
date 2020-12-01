@@ -347,7 +347,7 @@ torch.save({
     'encoder': model.module.encoder.state_dict(),
     'decoder': model.module.decoder.state_dict(),
     'optimizer': optimizer.state_dict(),
-    'model_args': model.args
+    'model_args': model.module.args
 }, os.path.join(args.save_path, 'model_final.pth'))
 
 np.save(os.path.join(args.save_path, 'log_loss'), log_loss)
