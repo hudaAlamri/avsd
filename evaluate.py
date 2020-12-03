@@ -110,6 +110,7 @@ print("{} iter per epoch.".format(args.iter_per_epoch))
 # read saved model and args
 # ----------------------------------------------------------------------------
 for checkpoint in checkpoints:
+    print('checkpoint:',checkpoint)
     model_path = os.path.join(args.load_path, checkpoint)
     components = torch.load(model_path)
     model_args = components['model_args']

@@ -35,7 +35,6 @@ def process_ranks(ranks, save_path, epoch):
         f.write("\tr@1: {}\n".format(num_r1 / num_ques))
         f.write("\tr@5: {}\n".format(num_r5 / num_ques))
         f.write("\tr@10: {}\n".format(num_r10 / num_ques))
-        f.write("\tr@10: {}\n".format(num_r10 / num_ques))
         f.write("\tmeanR: {}\n".format(torch.mean(ranks)))
         f.write("\tmeanRR: {}\n".format(torch.mean(ranks.reciprocal())))
         f.write('\n')
