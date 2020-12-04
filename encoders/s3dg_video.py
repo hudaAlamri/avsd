@@ -265,7 +265,7 @@ class S3D(nn.Module):
         input = input.contiguous().view(B, 8 * C, T // 2, H // 2, W // 2)
         return input
 
-    def forward(self, inputs1):
+    def forward(self, inputs):
         """Defines the S3DG base architecture.
       """
         if self.space_to_depth:
