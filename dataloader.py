@@ -2,7 +2,7 @@ import os
 import json
 from six import iteritems
 from random import shuffle
-
+from transformers import BertTokenizer
 import h5py
 import hdfdict
 import numpy as np
@@ -71,15 +71,15 @@ class VisDialDataset(Dataset):
         print("Dataloader loading h5 file: {}".format(args.input_ques))
         ques_file = h5py.File(args.input_ques, 'r')
 
-        if 'image' in args.input_type:
+        if 'I' in args.input_type:
             print("Dataloader loading h5 file: {}".format(args.input_img))
             img_file = h5py.File(args.input_img, 'r')
 
-        if 'video' in args.input_type:
+        if 'V' in args.input_type:
             print("Dataloader loading h5 file: {}".format(args.input_vid))
             vid_file = args.input_vid
 
-        if 'audio' in args.input_type:
+        if 'A' in args.input_type:
             print("Dataloader loading h5 file: {}".format(args.input_audio))
             audio_file = h5py.File(args.input_audio, 'r')
 

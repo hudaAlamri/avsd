@@ -2,10 +2,10 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
+
 from utils import DynamicRNN
-
 from encoders.s3dg_video import S3D
-
+from transformers import BertTokenizer, BertModel
 
 class LateFusionEncoder(nn.Module):
 
@@ -33,8 +33,13 @@ class LateFusionEncoder(nn.Module):
         super().__init__()
         self.args = args
 
-        self.word_embed = nn.Embedding(
-            args.vocab_size, args.embed_size, padding_idx=0)
+        if args.text_encoder == 'lstm':
+            args.embed_size = 300
+            self.word_embed = nn.Embedding(
+                args.vocab_size, args.embed_size, padding_idx=0)
+        else:
+            args.embed_size = 768
+            self.word_embed = BertModel.from_pretrained('bert-base-uncased')
 
         if self.args.finetune:
             self.video_embed = S3D(
@@ -125,6 +130,10 @@ class LateFusionEncoder(nn.Module):
             # embed history
             hist = hist.view(-1, hist.size(2))
             hist_embed = self.word_embed(hist)
+
+            if self.args.text_encoder == 'BERT':
+                hist_embed = hist_embed['last_hidden_state']
+
             hist_embed = self.hist_rnn(hist_embed, batch['hist_len'])
 
         ques = batch['ques']
@@ -132,6 +141,8 @@ class LateFusionEncoder(nn.Module):
         # embed questions
         ques = ques.view(-1, ques.size(2))
         ques_embed = self.word_embed(ques)
+        if self.args.text_encoder == 'BERT':
+            ques_embed = ques_embed['last_hidden_state']
         ques_embed = self.ques_rnn(ques_embed, batch['ques_len'])
 
         if self.args.input_type == 'Q_only':

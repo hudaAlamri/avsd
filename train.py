@@ -159,7 +159,7 @@ dataloader_val = DataLoader(dataset_val,
                             shuffle=False,
                             collate_fn=dataset.collate_fn)
 
-dataset_test =  VisDialDataset(args, ['test'])
+dataset_test = VisDialDataset(args, ['test'])
 dataloader_test = DataLoader(dataset_test,
                             batch_size=args.batch_size,
                             shuffle=False,

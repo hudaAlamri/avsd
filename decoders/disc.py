@@ -30,19 +30,32 @@ class DiscriminativeDecoder(nn.Module):
         options = batch['opt']
         options_len = batch['opt_len']
         # word embed options
-        options = options.view(options.size(0) * options.size(1), options.size(2), -1)
-        options_len = options_len.view(options_len.size(0) * options_len.size(1), -1)
-        batch_size, num_options, max_opt_len = options.size()
-        options = options.contiguous().view(-1, num_options * max_opt_len)
-        options = self.word_embed(options)
-        options = options.view(batch_size, num_options, max_opt_len, -1)
 
+        if self.args.text_encoder == 'BERT':
+            batch_size, rounds, num_options, num_words = options.size()
+            options_embeds = torch.zeros([batch_size * rounds, num_options, num_words, self.args.embed_size],
+                                         dtype=torch.float)
+            options = options.view(batch_size*rounds, num_options, -1)
+            for i in range(batch_size*rounds):
+                opt_embed = self.word_embed(options[i])['last_hidden_state'].detach().cpu()
+                opt_embed = self.word_embed(options[i])['last_hidden_state'].detach().cpu()
+                options_embeds[i, :] = opt_embed
+            options_embeds = options_embeds.view(batch_size * rounds, num_options, num_words, -1)
+
+        else:
+            options = options.view(options.size(0) * options.size(1), options.size(2), -1)
+            batch_size, num_options, max_opt_len = options.size()
+            options = options.contiguous().view(-1, num_options * max_opt_len)
+            options_embeds = self.word_embed(options)
+            options_embeds = options_embeds.view(batch_size, num_options, max_opt_len, -1)
+
+        options_len = options_len.view(options_len.size(0) * options_len.size(1), -1)
         # score each option
         scores = []
         for opt_id in range(num_options):
-            opt = options[:, opt_id, :, :]
+            opt = options_embeds[:, opt_id, :, :]
             opt_len = options_len[:, opt_id]
-            opt_embed = self.option_rnn(opt, opt_len)
+            opt_embed = self.option_rnn(opt.to(0), opt_len)
             scores.append(torch.sum(opt_embed * enc_out, 1))
 
         scores = torch.stack(scores, 1)
