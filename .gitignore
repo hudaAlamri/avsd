@@ -7,7 +7,12 @@ __pycache__
 *.swp
 # C extensions
 *.so
-
+*.pyc
+*._
+*.png
+__pycache__
+/venv
+/.idea
 # Distribution / packaging
 .Python
 build/
@@ -30,7 +35,8 @@ MANIFEST
 # Datasets, pretrained models, checkpoints and preprocessed files
 data/
 !visdialch/data/
-checkpoints/
+checkpoints
+checkpoints/*
 logs/
 results/
 log/

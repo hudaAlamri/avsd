@@ -1,16 +1,43 @@
 import argparse
-import numpy as np
-import pandas as pd
 import os
-from tqdm import tqdm
+import random
+
+import cv2
 import ffmpeg
 import h5py
-
+import numpy as np
+import pandas as pd
 import torch
 import torch as th
 import torch.nn.functional as F
 from torch.utils.data import Dataset
-import random
+from torchvision import io, transforms
+from tqdm import tqdm
+
+random.seed(42)
+np.random.seed(42)
+
+
+class Transform(object):
+
+    def __init__(self):
+        self.mean = torch.tensor([0.485, 0.456, 0.406], dtype=torch.float32)
+        self.std = torch.tensor([0.229, 0.224, 0.225], dtype=torch.float32)
+
+    def __call__(self, add_jitter=False, crop_size=224):
+        transform = transforms.Compose([
+            self.random_crop(crop_size),
+        ])
+        return transform
+
+    def to_tensor(self):
+        return transforms.ToTensor()
+
+    def random_crop(self, size):
+        return transforms.RandomCrop(size, pad_if_needed=True)
+
+    def colorJitter(self):
+        return transforms.ColorJitter(0.4, 0.2, 0.2, 0.1)
 
 
 class CustomDataset(Dataset):
@@ -24,14 +51,46 @@ class CustomDataset(Dataset):
         self.path = path
         self.fl_list = self.get_filenames(
             os.path.join(args.video_root, path))
+        self.transform = Transform()
 
     def __len__(self):
         return len(self.fl_list)
+
+    def _get_opencv_video(self, video_path):
+        cap = cv2.VideoCapture(video_path)
+        cap.set(cv2.CAP_PROP_FPS, 30)
+        ret, frame = cap.read()
+        frames = [frame]
+        while ret:
+            ret, frame = cap.read()
+            if frame is not None:
+                frames.append(frame)
+        cap.release()
+        frames_array = np.concatenate(np.expand_dims(frames, 0))
+        return frames_array
 
     def get_filenames(self, path):
         results = []
         results += [each for each in os.listdir(path) if each.endswith('.mp4')]
         return results
+
+    def _get_video_torch(self, video_path):
+        vframes, _, vmeta = io.read_video(video_path)
+        vframes = vframes.permute(0, 3, 1, 2)
+        vframes = self.transform(self.args.video_size)(vframes)
+        if vframes.shape[0] < self.args.num_frames:
+            zeros = th.zeros(
+                (3, self.args.num_frames - video.shape[0], self.args.video_size, self.args.video_size), dtype=th.uint8)
+            vframes = th.cat((vframes, zeros), axis=0)
+        # Gets n_frames from tne entire video, linearly spaced
+        vid_indices = np.linspace(
+            0, vframes.shape[0] - 1, self.args.num_frames, dtype=int)
+        vid = vframes[vid_indices, :].permute(1, 0, 2, 3)
+        for i in range(3):
+            for j in range(vid.shape[1]):
+                if vid[i, j, :, :].sum() == 0:
+                    print(i, j)
+        return vid
 
     def _get_video(self, video_path, start=0, end=0):
         '''
@@ -59,8 +118,8 @@ class CustomDataset(Dataset):
                          str(self.args.video_size), str(self.args.video_size))
             )'''
             cmd = (
-                cmd.crop('max(0, (iw - {}))*{}'.format(self.args.video_size, aw),
-                         'max(0, (ih - {}))*{}'.format(self.args.video_size, ah),
+                cmd.crop('max(0, (iw-{}))*{}'.format(self.args.video_size, aw),
+                         'max(0, (ih-{}))*{}'.format(self.args.video_size, ah),
                          'min(iw, {})'.format(self.args.video_size),
                          'min(ih, {})'.format(self.args.video_size))
                 .filter('scale', self.args.video_size, self.args.video_size)
@@ -99,7 +158,7 @@ class CustomDataset(Dataset):
             self.args.write_path, video_file.replace(".mp4", ".npy"))
         video_path = os.path.join(
             self.args.video_root, self.path, video_file)
-        vid = self._get_video(video_path)
+        vid = self._get_video_torch(video_path)
         np.save(write_file, vid)
         return video_file
 
