@@ -17,7 +17,8 @@ def get_args(parser, description='MILNCE'):
                         help='True for lf encoding')
     parser.add_argument('-decoder', default='disc',
                         choices=['disc'], help='Decoder to use for training')
-
+    parser.add_argument('-finetune_textEncoder', default=0,
+                         help= 'Finetune the text encoder')
     parser.add_argument_group('Optimization related arguments')
     parser.add_argument('-num_epochs', default=45, type=int, help='Epochs')
     parser.add_argument('-batch_size', default=12, type=int, help='Batch size')

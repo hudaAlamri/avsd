@@ -40,8 +40,12 @@ class LateFusionEncoder(nn.Module):
             args.embed_size = 768
             self.word_embed = BertModel.from_pretrained('bert-base-uncased')
             # Freeze all the layers and use bert to encode the text for now
-            for param in self.word_embed.parameters():
-                param.requires_grad = False
+            if not self.args.finetune_textEncoder:
+                print('Freezing all bert layers')
+                for param in self.word_embed.parameters():
+                    param.requires_grad = False
+            else:
+                print('Finetuning text encoder layers')
 
         if self.args.finetune:
             self.video_embed = S3D(
