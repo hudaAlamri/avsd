@@ -38,8 +38,7 @@ class DiscriminativeDecoder(nn.Module):
                                          dtype=torch.float)
             options = options.view(batch_size*rounds, num_options, -1)
             for i in range(batch_size*rounds):
-                opt_embed = self.word_embed(options[i])['last_hidden_state'].detach().cpu()
-                opt_embed = self.word_embed(options[i])['last_hidden_state'].detach().cpu()
+                opt_embed = self.word_embed(options[i])['last_hidden_state']
                 options_embeds[i, :] = opt_embed
             options_embeds = options_embeds.view(batch_size * rounds, num_options, num_words, -1)
 
@@ -56,7 +55,8 @@ class DiscriminativeDecoder(nn.Module):
         for opt_id in range(num_options):
             opt = options_embeds[:, opt_id, :, :]
             opt_len = options_len[:, opt_id]
-            opt_embed = self.option_rnn(opt.to(0), opt_len)
+            device = opt_len.device
+            opt_embed = self.option_rnn(opt.to(device), opt_len)
             scores.append(torch.sum(opt_embed * enc_out, 1))
 
         scores = torch.stack(scores, 1)

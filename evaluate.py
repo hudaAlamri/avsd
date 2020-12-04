@@ -115,7 +115,7 @@ def repeat_tensors(batch, num_repeat):
                 new_batch[k] = torch.cat((new_batch[k], v[-1].unsqueeze(0)), 0)
     return new_batch
 
-
+'''
 if args.use_gt:
     # ------------------------------------------------------------------------
     # calculate automatic metrics and finish
@@ -174,6 +174,7 @@ else:
 
                     # read saved model and args
                     # ----------------------------------------------------------------------------
+'''
 for checkpoint in checkpoints:
     print('checkpoint:', checkpoint)
     model_path = os.path.join(args.load_path, checkpoint)
