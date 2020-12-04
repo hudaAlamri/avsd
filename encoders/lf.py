@@ -51,7 +51,7 @@ class LateFusionEncoder(nn.Module):
                 for param in list(self.word_embed.embeddings.parameters()):
                     param.requires_grad = False
                 print("Froze Embedding Layer")
-                layer_indexes = "1,2,3,4,5,6,7,8,9"
+                freeze_layers = "1,2,3,4,5,6,7,8,9,10,11"
                 layer_indexes = [int(x) for x in freeze_layers.split(",")]
                 for layer_idx in layer_indexes:
                     for param in list(self.word_embed.encoder.layer[layer_idx].parameters()):
