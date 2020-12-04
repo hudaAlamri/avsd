@@ -23,4 +23,4 @@ class AVSD(nn.Module):
         dec_out = self.decoder(enc_out, batch)
         cur_loss = self.criterion(dec_out, batch['ans_ind'].view(-1))
 
-        return cur_loss
+        return dec_out, cur_loss

@@ -18,14 +18,13 @@ from dataloader import VisDialDataset
 from decoders import Decoder
 from encoders import Encoder, LateFusionEncoder
 from models import AVSD
-from utils import visualize
+from utils import get_gt_ranks, process_ranks, scores_to_ranks, visualize
 
 parser = argparse.ArgumentParser()
 VisDialDataset.add_cmdline_args(parser)
 LateFusionEncoder.add_cmdline_args(parser)
 
 args = get_args(parser)
-
 args.numpy_path += "/num_frames_{}".format(args.num_frames)
 start_time = datetime.datetime.strftime(
     datetime.datetime.utcnow(), '%d-%b-%Y-%H:%M:%S')
@@ -99,6 +98,12 @@ dataloader_val = DataLoader(dataset_val,
                             shuffle=False,
                             drop_last=True,
                             collate_fn=dataset.collate_fn)
+
+dataset_test = VisDialDataset(args, ['test'])
+dataloader_test = DataLoader(dataset_test,
+                             batch_size=args.batch_size,
+                             shuffle=False,
+                             collate_fn=dataset.collate_fn)
 # ----------------------------------------------------------------------------
 # setting model args
 # ----------------------------------------------------------------------------
@@ -183,6 +188,8 @@ log_loss = []
 for epoch in range(1, model_args.num_epochs + 1):
     for i, batch in tqdm(enumerate(dataloader)):
         optimizer.zero_grad()
+        model.train()
+        model.zero_grad()
         for key in batch:
             if not isinstance(batch[key], list):
                 batch[key] = Variable(batch[key])
@@ -196,7 +203,8 @@ for epoch in range(1, model_args.num_epochs + 1):
         #     num_repeat = args.num_gpu - batch["vid_feat"].shape[0] % args.num_gpu
         #     batch = repeat_tensors(batch, num_repeat)
         new_batch = convert_list_to_tensor(batch)
-        cur_loss = model(new_batch).mean()
+        _, cur_loss = model(new_batch)
+        cur_loss = cur_loss.mean()
         cur_loss.backward()
 
         optimizer.step()
@@ -219,13 +227,13 @@ for epoch in range(1, model_args.num_epochs + 1):
 
         # --------------------------------------------------------------------
         # print after every few iterations
-        # --------------------------------------------------------------------
 
         if (i + 1) % args.eval_step == 0:
             print("Running validation")
             validation_losses = []
-
-            for v_i, val_batch in tqdm(enumerate(dataloader_val)):
+            model.eval()
+            model.zero_grad()
+            for _, val_batch in tqdm(enumerate(dataloader_val)):
                 for key in val_batch:
                     if not isinstance(val_batch[key], list):
                         val_batch[key] = Variable(val_batch[key])
@@ -237,7 +245,8 @@ for epoch in range(1, model_args.num_epochs + 1):
                 #     val_batch = repeat_tensors(val_batch, num_repeat)
                 # print(val_batch["img_fnames"])
                 new_batch_v = convert_list_to_tensor(val_batch)
-                cur_loss = model(new_batch_v).mean()
+                _, cur_loss = model(new_batch_v)
+                cur_loss = cur_loss.mean()
                 validation_losses.append(cur_loss.item())
 
             validation_loss = np.mean(validation_losses)
@@ -268,6 +277,28 @@ for epoch in range(1, model_args.num_epochs + 1):
             'optimizer': optimizer.state_dict(),
             'model_args': model.module.args
         }, os.path.join(args.save_path, 'model_epoch_{}.pth'.format(epoch)))
+        print('Running evaluation for checkpoint:', epoch)
+        model.eval()
+        all_ranks = []
+        for i, batch in tqdm(enumerate(tqdm(dataloader))):
+            for key in batch:
+                if not isinstance(batch[key], list):
+                    batch[key] = Variable(batch[key], volatile=True)
+                    if args.gpuid >= 0:
+                        batch[key] = batch[key].cuda()
+
+            new_batch = convert_list_to_tensor(batch)
+            dec_out, _ = model(new_batch)
+            ranks = scores_to_ranks(dec_out.data)
+            gt_ranks = get_gt_ranks(ranks, batch['ans_ind'].data)
+            all_ranks.append(gt_ranks)
+
+        all_ranks = torch.cat(all_ranks, 0)
+        process_ranks(all_ranks, args.save_path, epoch)
+
+        f.close()
+        gc.collect()
+        model.train()
 
 torch.save({
     'encoder': model.module.encoder.state_dict(),

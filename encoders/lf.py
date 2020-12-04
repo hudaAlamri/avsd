@@ -40,6 +40,7 @@ class LateFusionEncoder(nn.Module):
                 dict_path='data/s3d_dict.npy', space_to_depth=True)
             self.video_embed.load_state_dict(
                 torch.load('data/s3d_howto100m.pth'), strict=False)
+
             self.video_embed.train()
             if self.args.unfreeze_layers:
                 self.__freeze_s3dg_layers()

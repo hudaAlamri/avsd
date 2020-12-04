@@ -7,7 +7,12 @@ __pycache__
 *.swp
 # C extensions
 *.so
-
+*.pyc
+*._
+*.png
+__pycache__
+/venv
+/.idea
 # Distribution / packaging
 .Python
 build/
