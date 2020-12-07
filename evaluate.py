@@ -34,6 +34,7 @@ torch.autograd.set_detect_anomaly(True)
 # ----------------------------------------------------------------------------
 
 args = parser.parse_args()
+model_args = args
 '''
 log_path = os.path.join(args.load_path, 'eval_results.log')
 logging.basicConfig(filename='eval_results.log')
@@ -219,8 +220,7 @@ for checkpoint in checkpoints:
                         batch[key] = batch[key].cuda()
 
             if not batch["vid_feat"].shape[0] % args.num_gpu == 0:
-            num_repeat = args.num_gpu - \
-                batch["vid_feat"].shape[0] % args.num_gpu
+                num_repeat = args.num_gpu - batch["vid_feat"].shape[0] % args.num_gpu
             batch = repeat_tensors(batch, num_repeat)
             new_batch = convert_list_to_tensor(batch)
             dec_out, _ = model(new_batch)
@@ -243,8 +243,7 @@ for checkpoint in checkpoints:
                         batch[key] = batch[key].cuda()
 
             if not batch["vid_feat"].shape[0] % args.num_gpu == 0:
-            num_repeat = args.num_gpu - \
-                batch["vid_feat"].shape[0] % args.num_gpu
+                num_repeat = args.num_gpu - batch["vid_feat"].shape[0] % args.num_gpu
             batch = repeat_tensors(batch, num_repeat)
             new_batch = convert_list_to_tensor(batch)
             dec_out, _ = model(new_batch)

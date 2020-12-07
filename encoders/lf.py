@@ -37,7 +37,6 @@ class LateFusionEncoder(nn.Module):
             self.word_embed = nn.Embedding(
                 args.vocab_size, args.embed_size, padding_idx=0)
         else:
-            freeze_layers = True
             freeze_embeddings = True
             args.embed_size = 768
             self.word_embed = BertModel.from_pretrained('bert-base-uncased')
@@ -51,18 +50,14 @@ class LateFusionEncoder(nn.Module):
                 for param in list(self.word_embed.embeddings.parameters()):
                     param.requires_grad = False
                 print("Froze Embedding Layer")
-                freeze_layers = "1,2,3,4,5,6,7,8,9,10,11"
+                freeze_layers = "0,1,2,3,4,5,6,7,8,9"
                 layer_indexes = [int(x) for x in freeze_layers.split(",")]
                 for layer_idx in layer_indexes:
                     for param in list(self.word_embed.encoder.layer[layer_idx].parameters()):
                         param.requires_grad = False
                     print("Froze Layer: ", layer_idx)
-
-
-
-
-
-
+            for name, param in self.word_embed.named_parameters():
+                    print(name, param.requires_grad)
         if self.args.finetune:
             self.video_embed = S3D(
                 dict_path='data/s3d_dict.npy', space_to_depth=True)

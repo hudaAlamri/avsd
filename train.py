@@ -31,8 +31,8 @@ start_time = datetime.datetime.strftime(
 
 if args.save_path == 'checkpoints/':
     # args.save_path += start_time
-    args.save_path += 'input_type_{0}_s3d_mixed_5c_fps_{1}_num_frames_{2}_text_encoder_{3}_lr_{4}_unfreeze_layer_{5}_finetune_{6}_use_npy_{7}_batch_size_{8}'.format(
-        args.input_type, args.fps, args.num_frames, args.text_encoder, args.lr, args.unfreeze_layers, args.finetune, args.use_npy, args.batch_size)
+    args.save_path += 'input_type_{0}_s3d_mixed_5c_fps_{1}_num_frames_{2}_text_encoder_{3}_lr_{4}_unfreeze_layer_{5}_finetune_{6}_use_npy_{7}_batch_size_{8}_finetuneBert_{9}'.format(
+        args.input_type, args.fps, args.num_frames, args.text_encoder, args.lr, args.unfreeze_layers, args.finetune, args.use_npy, args.batch_size, args.finetune_textEncoder)
 
 # -------------------------------------------------------------------------------------
 # setting visdom args
