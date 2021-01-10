@@ -39,8 +39,13 @@ def process_ranks(ranks, save_path, epoch):
         f.write("\tmeanRR: {}\n".format(torch.mean(ranks.reciprocal())))
         f.write('\n')
     f.close()
-    
-    
+
+    metrics = { "r@1": num_r1 / num_ques,
+                "r@5": num_r5 / num_ques,
+                "r@10": num_r10 / num_ques,
+                "mean": torch.mean(ranks),
+                "mrr": torch.mean(ranks.reciprocal()) }
+
     print("\tNo. questions: {}".format(num_ques))
     print("\tr@1: {}".format(num_r1 / num_ques))
     print("\tr@5: {}".format(num_r5 / num_ques))
@@ -48,6 +53,7 @@ def process_ranks(ranks, save_path, epoch):
     print("\tmeanR: {}".format(torch.mean(ranks)))
     print("\tmeanRR: {}".format(torch.mean(ranks.reciprocal())))
 
+    return metrics
 
 def scores_to_ranks(scores):
     # sort in descending order - largest score gets highest rank
