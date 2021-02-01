@@ -232,7 +232,7 @@ for epoch in range(1, model_args.num_epochs + 1):
             validation_losses = []
             model.eval()
             model.zero_grad()
-            for _, val_batch in tqdm(enumerate(dataloader_val)):
+            for _, val_batch in enumerate(dataloader_val):
                 for key in val_batch:
                     if not isinstance(val_batch[key], list):
                         val_batch[key] = Variable(val_batch[key])
