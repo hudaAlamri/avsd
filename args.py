@@ -17,7 +17,8 @@ def get_args(parser, description='MILNCE'):
                         help='True for lf encoding')
     parser.add_argument('-decoder', default='disc',
                         choices=['disc'], help='Decoder to use for training')
-
+    parser.add_argument('-finetune_textEncoder', default=0, type=int,
+                         help= 'Finetune the text encoder')
     parser.add_argument_group('Optimization related arguments')
     parser.add_argument('-num_epochs', default=45, type=int, help='Epochs')
     parser.add_argument('-batch_size', default=12, type=int, help='Batch size')
@@ -78,6 +79,10 @@ def get_args(parser, description='MILNCE'):
     parser.add_argument('-set_cuda_device', type=str, default='')
     parser.add_argument("-seed", type=int, default=1,
                         help="random seed for initialization")
+
+    parser.add_argument('-save_ranks', action='store_true', help='Whether to save retrieved ranks')
+    parser.add_argument('-use_gt', action='store_true', help='Whether to use ground truth for retriveing ranks')
+    parser.add_argument('--split', default='test', choices=['val', 'test', 'train'], help='Split to evaluate on')
     # ----------------------------------------------------------------------------
     # input arguments and options
     # ----------------------------------------------------------------------------

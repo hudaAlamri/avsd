@@ -16,13 +16,20 @@ from dataloader import VisDialDataset
 from decoders import Decoder
 from encoders import Encoder, LateFusionEncoder
 from models import AVSD
-from utils import get_gt_ranks, process_ranks, scores_to_ranks
+from utils import get_gt_ranks, process_ranks, scores_to_ranks, visualize
+import pprint
+
 
 parser = argparse.ArgumentParser()
 VisDialDataset.add_cmdline_args(parser)
 LateFusionEncoder.add_cmdline_args(parser)
 
 args = get_args(parser)
+
+viz = visualize.VisdomLinePlot(
+    env_name=args.visEnvName,
+    server=args.server,
+    port=args.serverPort)
 
 # seed for reproducibility
 torch.manual_seed(1234)
@@ -34,6 +41,7 @@ torch.autograd.set_detect_anomaly(True)
 # ----------------------------------------------------------------------------
 
 args = parser.parse_args()
+model_args = args
 '''
 log_path = os.path.join(args.load_path, 'eval_results.log')
 logging.basicConfig(filename='eval_results.log')
@@ -74,8 +82,7 @@ print("{} iter per epoch.".format(args.iter_per_epoch))
 # ----------------------------------------------------------------------------
 # setup the model
 # ----------------------------------------------------------------------------
-
-
+'''
 model = AVSD(model_args)
 model._load_state_dict_(components)
 print("Loaded model from {}".format(args.load_path))
@@ -83,15 +90,10 @@ print("Loaded model from {}".format(args.load_path))
 if args.gpuid >= 0:
     model = torch.nn.DataParallel(model, output_device=0, dim=0)
     model = model.to(device)
-
+'''
 # ----------------------------------------------------------------------------
 # evaluation
 # ----------------------------------------------------------------------------
-
-print("Evaluation start time: {}".format(
-    datetime.datetime.strftime(datetime.datetime.utcnow(), '%d-%b-%Y-%H:%M:%S')))
-model.eval()
-
 
 def convert_list_to_tensor(batch):
     new_batch = {}
@@ -115,7 +117,7 @@ def repeat_tensors(batch, num_repeat):
                 new_batch[k] = torch.cat((new_batch[k], v[-1].unsqueeze(0)), 0)
     return new_batch
 
-
+'''
 if args.use_gt:
     # ------------------------------------------------------------------------
     # calculate automatic metrics and finish
@@ -174,13 +176,28 @@ else:
 
                     # read saved model and args
                     # ----------------------------------------------------------------------------
+'''
+
+print("Evaluation start time: {}".format(
+    datetime.datetime.strftime(datetime.datetime.utcnow(), '%d-%b-%Y-%H:%M:%S')))
+
+i=0
+
 for checkpoint in checkpoints:
+
     print('checkpoint:', checkpoint)
     model_path = os.path.join(args.load_path, checkpoint)
     components = torch.load(model_path)
     model_args = components['model_args']
+    if i == 0:
+        #viz.writeText(pprint.pformat(args, indent=4))
+        viz.writeText(args)
+        i +=1
+    model = AVSD(model_args)
+    model._load_state_dict_(components)
     model_args.gpuid = args.gpuid
     model_args.batch_size = args.batch_size
+
 
     for arg in vars(args):
         print('{:<20}: {}'.format(arg, getattr(args, arg)))
@@ -189,8 +206,7 @@ for checkpoint in checkpoints:
     # setup the model
     # ----------------------------------------------------------------------------
 
-    model = AVSD(model_args)
-    model._load_state_dict_(components)
+
     print("Loaded model from {}".format(args.load_path))
 
     if args.gpuid >= 0:
@@ -217,17 +233,22 @@ for checkpoint in checkpoints:
                     if args.gpuid >= 0:
                         batch[key] = batch[key].cuda()
 
-            if not batch["vid_feat"].shape[0] % args.num_gpu == 0:
-            num_repeat = args.num_gpu - \
-                batch["vid_feat"].shape[0] % args.num_gpu
-            batch = repeat_tensors(batch, num_repeat)
             new_batch = convert_list_to_tensor(batch)
             dec_out, _ = model(new_batch)
             ranks = scores_to_ranks(dec_out.data)
             gt_ranks = get_gt_ranks(ranks, batch['ans_ind'].data)
             all_ranks.append(gt_ranks)
         all_ranks = torch.cat(all_ranks, 0)
-        process_ranks(all_ranks, args.load_path, checkpoint[6:-4])
+
+        all_metrics = process_ranks(all_ranks, args.load_path, checkpoint[6:-4])
+        iter_id = checkpoint[6:-4]
+        for metric_name, metric_value in all_metrics.items():
+            print(f"{metric_name}: {metric_value}")
+            if 'round' in metric_name:
+                viz.plotLine(iter_id, metric_value, 'Retrieval Round Val Metrics Round -' + metric_name.split('_')[-1],
+                             metric_name)
+            else:
+                viz.plotLine(iter_id.split('_')[1], metric_value, 'Retrieval Val Metrics', metric_name)
         gc.collect()
     else:
         # ------------------------------------------------------------------------
@@ -241,10 +262,7 @@ for checkpoint in checkpoints:
                     if args.gpuid >= 0:
                         batch[key] = batch[key].cuda()
 
-            if not batch["vid_feat"].shape[0] % args.num_gpu == 0:
-            num_repeat = args.num_gpu - \
-                batch["vid_feat"].shape[0] % args.num_gpu
-            batch = repeat_tensors(batch, num_repeat)
+
             new_batch = convert_list_to_tensor(batch)
             dec_out, _ = model(new_batch)
             ranks = scores_to_ranks(dec_out.data)
@@ -271,3 +289,5 @@ for checkpoint in checkpoints:
         print("Writing ranks to {}".format(args.save_path))
         os.makedirs(os.path.dirname(args.save_path), exist_ok=True)
         json.dump(ranks_json, open(args.save_path, 'w'))
+
+

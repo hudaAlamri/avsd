@@ -24,12 +24,27 @@ def process_ranks(ranks, save_path, epoch):
         print("Warning: some of ranks > 100: {}".format(num_ge))
         ranks = ranks[ranks.le(num_opts + 1)]
   
+
+    metrics = {}
+
     ranks = ranks.float()
     num_r1 = float(torch.sum(torch.le(ranks, 1)))
     num_r5 = float(torch.sum(torch.le(ranks, 5)))
     num_r10 = float(torch.sum(torch.le(ranks, 10)))
-    
-    with open(os.path.join(save_path, "ranks_resutls.txt"), "a+") as f:
+   
+    r1 = num_r1 / num_ques
+    r5 = num_r5 / num_ques
+    r10 = num_r10 / num_ques
+    meanR = torch.mean(ranks)
+    meanRR = torch.mean(ranks.reciprocal())
+
+    metrics['r1'] = r1
+    metrics['r5'] = r5
+    metrics['r10'] = r10
+    metrics['meanR'] = meanR
+    metrics['meanRR'] = meanRR
+
+    with open(os.path.join(save_path, "ranks_resutls_evaluation.txt"), "a+") as f:
         f.write("Epoch: {}".format(epoch))
         f.write("\tNo. questions: {}\n".format(num_ques))
         f.write("\tr@1: {}\n".format(num_r1 / num_ques))
@@ -38,8 +53,8 @@ def process_ranks(ranks, save_path, epoch):
         f.write("\tmeanR: {}\n".format(torch.mean(ranks)))
         f.write("\tmeanRR: {}\n".format(torch.mean(ranks.reciprocal())))
         f.write('\n')
-    f.close()
     
+    f.close()
     
     print("\tNo. questions: {}".format(num_ques))
     print("\tr@1: {}".format(num_r1 / num_ques))
@@ -48,6 +63,7 @@ def process_ranks(ranks, save_path, epoch):
     print("\tmeanR: {}".format(torch.mean(ranks)))
     print("\tmeanRR: {}".format(torch.mean(ranks.reciprocal())))
 
+    return metrics 
 
 def scores_to_ranks(scores):
     # sort in descending order - largest score gets highest rank
