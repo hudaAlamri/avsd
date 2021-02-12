@@ -242,6 +242,7 @@ for checkpoint in checkpoints:
 
         all_metrics = process_ranks(all_ranks, args.load_path, checkpoint[6:-4])
         iter_id = checkpoint[6:-4]
+        '''
         for metric_name, metric_value in all_metrics.items():
             print(f"{metric_name}: {metric_value}")
             if 'round' in metric_name:
@@ -249,6 +250,7 @@ for checkpoint in checkpoints:
                              metric_name)
             else:
                 viz.plotLine(iter_id.split('_')[1], metric_value, 'Retrieval Val Metrics', metric_name)
+        '''
         gc.collect()
     else:
         # ------------------------------------------------------------------------

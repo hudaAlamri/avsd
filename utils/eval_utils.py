@@ -44,7 +44,7 @@ def process_ranks(ranks, save_path, epoch):
     metrics['meanR'] = meanR
     metrics['meanRR'] = meanRR
 
-    with open(os.path.join(save_path, "ranks_resutls_evaluation.txt"), "a+") as f:
+    with open(os.path.join(save_path, "ranks_resutls_valSet_Feb11.txt"), "a+") as f:
         f.write("Epoch: {}".format(epoch))
         f.write("\tNo. questions: {}\n".format(num_ques))
         f.write("\tr@1: {}\n".format(num_r1 / num_ques))
