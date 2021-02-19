@@ -138,6 +138,7 @@ scheduler = lr_scheduler.StepLR(
 if args.load_path != '':
     model._load_state_dict_(components)
     print("Loaded model from {}".format(args.load_path))
+
 print("Encoder: {}".format(args.encoder))
 print("Decoder: {}".format(args.decoder))
 
@@ -182,7 +183,6 @@ def repeat_tensors(batch, num_repeat):
             elif isinstance(v, torch.Tensor):
                 new_batch[k] = torch.cat((new_batch[k], v[-1].unsqueeze(0)), 0)
     return new_batch
-
 
 log_loss = []
 for epoch in range(1, model_args.num_epochs + 1):
@@ -280,7 +280,7 @@ for epoch in range(1, model_args.num_epochs + 1):
         print('Running evaluation for checkpoint:', epoch)
         model.eval()
         all_ranks = []
-        for i, batch in tqdm(enumerate(tqdm(dataloader))):
+        for i, batch in tqdm(enumerate(tqdm(dataloader_val))):
             for key in batch:
                 if not isinstance(batch[key], list):
                     batch[key] = Variable(batch[key], volatile=True)
