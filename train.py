@@ -116,6 +116,7 @@ for key in {'num_data_points', 'vocab_size', 'max_ques_count',
 # iterations per epoch
 setattr(args, 'iter_per_epoch', math.ceil(
     dataset.num_data_points['train'] / args.batch_size))
+
 print("{} iter per epoch.".format(args.iter_per_epoch))
 
 # ----------------------------------------------------------------------------
@@ -132,8 +133,11 @@ if args.finetune:
 optimizer = optim.Adam(list(model.parameters()),
                        lr=args.lr, weight_decay=args.weight_decay)
 
-scheduler = lr_scheduler.StepLR(
-    optimizer, step_size=1, gamma=args.lr_decay_rate)
+#scheduler = lr_scheduler.StepLR(
+#    optimizer, step_size=1, gamma=args.lr_decay_rate)
+
+#lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, verbose=True)
+scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, verbose=True)
 
 if args.load_path != '':
     model._load_state_dict_(components)
@@ -185,6 +189,7 @@ def repeat_tensors(batch, num_repeat):
     return new_batch
 
 log_loss = []
+
 for epoch in range(1, model_args.num_epochs + 1):
     for i, batch in tqdm(enumerate(dataloader)):
         optimizer.zero_grad()
@@ -202,14 +207,15 @@ for epoch in range(1, model_args.num_epochs + 1):
         # if not batch["vid_feat"].shape[0] % args.num_gpu == 0:
         #     num_repeat = args.num_gpu - batch["vid_feat"].shape[0] % args.num_gpu
         #     batch = repeat_tensors(batch, num_repeat)
+
         new_batch = convert_list_to_tensor(batch)
         _, cur_loss = model(new_batch)
         cur_loss = cur_loss.mean()
         cur_loss.backward()
 
+
         optimizer.step()
         gc.collect()
-
         # --------------------------------------------------------------------
         # update running loss and decay learning rates
         # --------------------------------------------------------------------
@@ -223,11 +229,10 @@ for epoch in range(1, model_args.num_epochs + 1):
             running_loss = cur_loss.item()
 
         if optimizer.param_groups[0]['lr'] > args.min_lr:
-            scheduler.step()
+            scheduler.step(train_loss)
 
         # --------------------------------------------------------------------
         # print after every few iterations
-
         if (i + 1) % args.eval_step == 0:
             print("Running validation")
             validation_losses = []
